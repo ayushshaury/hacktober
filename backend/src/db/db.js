@@ -1,17 +1,39 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load env before reading process.env (backend/.env locally, repo root .env on Vercel)
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const { Pool, types } = pg;
 
 // Parse int8 (BIGINT, COUNT(*) in Postgres) as Javascript number
 types.setTypeParser(types.builtins.INT8, (val) => (val === null ? null : parseInt(val, 10)));
 
-const poolConfig = process.env.DATABASE_URL
+const DATABASE_URL =
+  process.env.DATABASE_URL ||
+  process.env.SUPABASE_DB_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRESQL_URL ||
+  '';
+
+const isSupabase = /\.supabase\.|supabase\.co/i.test(DATABASE_URL) ||
+  Boolean(process.env.SUPABASE_URL && (process.env.DB_HOST || '').includes('supabase'));
+
+const wantsSsl =
+  process.env.DB_SSL === 'true' ||
+  /sslmode=require/i.test(DATABASE_URL) ||
+  isSupabase ||
+  Boolean(process.env.DATABASE_URL);
+
+const poolConfig = DATABASE_URL
   ? {
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined
+      connectionString: DATABASE_URL,
+      ssl: wantsSsl ? { rejectUnauthorized: process.env.DB_REJECT_UNAUTHORIZED === 'true' } : undefined
     }
   : {
       host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
@@ -19,10 +41,23 @@ const poolConfig = process.env.DATABASE_URL
       user: process.env.DB_USER || process.env.PGUSER || 'postgres',
       password: process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : (process.env.PGPASSWORD || 'postgres'),
       database: process.env.DB_NAME || process.env.PGDATABASE || 'bit_sindri_clubs',
-      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined
+      ssl: wantsSsl ? { rejectUnauthorized: process.env.DB_REJECT_UNAUTHORIZED === 'true' } : undefined
     };
 
+// Serverless (Vercel) friendly pool: tiny, self-draining, with a hard statement timeout
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+poolConfig.max = parseInt(process.env.DB_POOL_MAX || (isServerless ? '1' : '10'), 10);
+poolConfig.connectionTimeoutMillis = parseInt(process.env.DB_CONNECT_TIMEOUT_MS || '10000', 10);
+poolConfig.idleTimeoutMillis = parseInt(process.env.DB_IDLE_TIMEOUT_MS || '30000', 10);
+poolConfig.statement_timeout = parseInt(process.env.DB_STATEMENT_TIMEOUT_MS || '15000', 10);
+if (isServerless) {
+  poolConfig.allowExitOnIdle = true;
+}
+
 export const pool = new Pool(poolConfig);
+pool.on('error', (err) => {
+  console.error('Postgres pool error:', err.message);
+});
 
 /**
  * Converts SQLite style '?' positional placeholders to PostgreSQL '$1', '$2', ...

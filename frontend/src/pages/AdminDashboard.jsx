@@ -587,7 +587,7 @@ export const AdminDashboard = () => {
 
   const getAvatarSrc = (url) => {
     if (!url) return '';
-    if (url.startsWith('/uploads')) return `http://localhost:5000${url}`;
+    if (url.startsWith('/uploads')) return `${url}`;
     return url;
   };
 
@@ -636,7 +636,7 @@ export const AdminDashboard = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
               {data.logo_url ? (
                 <img 
-                  src={data.logo_url.startsWith('/uploads') ? `http://localhost:5000${data.logo_url}` : data.logo_url}
+                  src={data.logo_url.startsWith('/uploads') ? `${data.logo_url}` : data.logo_url}
                   alt={data.name}
                   style={{ width: '56px', height: '56px', borderRadius: '16px', objectFit: 'cover', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
                   onError={(e) => { e.target.style.display = 'none'; }}

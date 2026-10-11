@@ -124,7 +124,7 @@ export const EventDetail = () => {
             overflow: 'hidden'
           }}>
             <img
-              src={event.image_url ? (event.image_url.startsWith('/uploads') ? `http://localhost:5000${event.image_url}` : event.image_url) : eventHacksindriImg}
+              src={event.image_url ? (event.image_url.startsWith('/uploads') ? `${event.image_url}` : event.image_url) : eventHacksindriImg}
               alt={event.title}
               style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'pixelated' }}
             />

@@ -28,7 +28,7 @@ export function ImageUploader({
     }
     // Relative upload from server
     if (url.startsWith('/uploads')) {
-      return `http://localhost:5000${url}`;
+      return `${url}`;
     }
     return url;
   };
@@ -53,7 +53,7 @@ export function ImageUploader({
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch('http://localhost:5000/api/upload', {
+      const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData
       });
