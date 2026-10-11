@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, Compass, ExternalLink, ArrowLeft, CheckCircle2, UserCheck, AlertCircle } from 'lucide-react';
+import { Calendar, MapPin, ExternalLink, ArrowLeft, CheckCircle2, UserCheck, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { PixelIcon } from '../components/PixelIcon';
+import eventHacksindriImg from '../assets/event_hacksindri_pixel.jpg';
 
 export const EventDetail = () => {
   const { id } = useParams();
@@ -33,12 +35,6 @@ export const EventDetail = () => {
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, [id, token]);
-
-  const getImageSrc = (url) => {
-    if (!url) return '';
-    if (url.startsWith('/uploads')) return `http://localhost:5000${url}`;
-    return url;
-  };
 
   const handleEventRegistration = async () => {
     if (!user) {
@@ -73,157 +69,121 @@ export const EventDetail = () => {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '800px', margin: '80px auto', textAlign: 'center', color: 'var(--text-muted)' }}>
-        Loading event details...
+      <div style={{ maxWidth: '800px', margin: '80px auto', textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+        LOADING EVENT DETAILS...
       </div>
     );
   }
 
   if (error && !event) {
     return (
-      <div style={{ maxWidth: '600px', margin: '80px auto', padding: '0 20px' }}>
-        <div className="glass-panel" style={{ padding: '36px', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '8px', color: 'var(--text-main)' }}>Event Not Found</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
-            The requested campus event details could not be loaded.
-          </p>
-          <Link to="/events" className="btn btn-secondary">
-            <ArrowLeft size={16} /> Back to Events Hub
-          </Link>
-        </div>
+      <div className="container" style={{ padding: '80px 20px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
+        <h2 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.8rem', color: 'var(--color-coral)' }}>EVENT NOT FOUND</h2>
+        <p style={{ color: 'var(--text-muted)', marginTop: '8px', marginBottom: '24px' }}>
+          The requested campus event details could not be loaded.
+        </p>
+        <Link to="/events" className="btn-pixel-gold">
+          ← BACK TO EVENTS
+        </Link>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '40px 24px 80px 24px' }} className="animate-fade-in">
-      
-      <Link to="/events" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '24px', fontWeight: 600 }}>
-        <ArrowLeft size={16} /> Back to Event Hub
-      </Link>
-
-      {/* Main Event Card Banner */}
-      <div className="glass-panel" style={{ padding: '36px', marginBottom: '32px' }}>
+    <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px' }}>
+      <div className="container" style={{ maxWidth: '880px', paddingTop: '36px' }}>
         
-        {/* Event Picture Banner if provided */}
-        {event.image_url ? (
-          <div style={{ 
-            width: '100%', 
-            maxHeight: '340px', 
-            borderRadius: '16px', 
-            overflow: 'hidden', 
-            marginBottom: '28px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.08)' 
-          }}>
-            <img 
-              src={getImageSrc(event.image_url)} 
-              alt={event.title}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={(e) => { e.target.parentElement.style.display = 'none'; }}
-            />
-          </div>
-        ) : null}
-
-        {/* Organizer Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-          <Link to={`/clubs/${event.club_slug}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.92rem', fontWeight: 700, color: 'var(--color-secondary)' }}>
-            <Compass size={18} /> Organized by {event.club_name}
+        {/* Breadcrumb */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '20px' }}>
+          <Link to="/events" style={{ color: 'var(--color-cyan)', textDecoration: 'none' }}>
+            EVENTS
           </Link>
-
-          <span className="badge" style={{ 
-            backgroundColor: event.status === 'Registration Open' ? '#E6F4EA' : 'var(--color-light-blue)',
-            color: event.status === 'Registration Open' ? '#137333' : '#0066CC',
-            border: event.status === 'Registration Open' ? '1px solid #CEEAD6' : '1px solid #BAE0FD'
-          }}>
-            {event.status}
+          <span>&gt;</span>
+          <span style={{ color: 'var(--color-gold)' }}>
+            {event.title.toUpperCase()}
           </span>
         </div>
 
-        <h1 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', fontWeight: 800, marginBottom: '24px', color: 'var(--text-main)', letterSpacing: '-0.025em' }}>
-          {event.title}
-        </h1>
-
-        {/* Metadata Grid (Apple Cards) */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', padding: '20px', background: 'rgba(248, 250, 252, 0.7)', borderRadius: '16px', border: '1px solid rgba(226, 232, 240, 0.8)', marginBottom: '32px' }}>
+        {/* Event Main Box */}
+        <div style={{
+          backgroundColor: '#0c141c',
+          border: '1px solid var(--border-gold)',
+          padding: '36px',
+          boxShadow: '0 0 20px rgba(194, 166, 73, 0.1)'
+        }}>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#EBF5FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0066CC' }}>
-              <Calendar size={20} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-light)', fontWeight: 700, letterSpacing: '0.04em' }}>EVENT DATE</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{event.event_date}</div>
-            </div>
+          {/* Banner */}
+          <div style={{
+            height: '240px',
+            backgroundColor: '#070c10',
+            border: '1px solid var(--border-card)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '28px',
+            overflow: 'hidden'
+          }}>
+            <img
+              src={event.image_url ? (event.image_url.startsWith('/uploads') ? `http://localhost:5000${event.image_url}` : event.image_url) : eventHacksindriImg}
+              alt={event.title}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'pixelated' }}
+            />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#E6F4EA', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#137333' }}>
-              <Clock size={20} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-light)', fontWeight: 700, letterSpacing: '0.04em' }}>TIMINGS</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{event.start_time || 'TBA'} {event.end_time ? `- ${event.end_time}` : ''}</div>
-            </div>
+          <h1 style={{ fontFamily: 'var(--font-pixel)', fontSize: '2.4rem', color: 'var(--text-cream)', marginBottom: '12px' }}>
+            {event.title}
+          </h1>
+
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--border-gold)', marginBottom: '24px' }}>
+            <div>📅 {event.event_date}</div>
+            <div>📍 {event.venue || 'BIT Sindri Campus'}</div>
+            <div>🏛️ {event.club_name || 'Organizing Club'}</div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#FEF7E0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B08800' }}>
-              <MapPin size={20} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-light)', fontWeight: 700, letterSpacing: '0.04em' }}>VENUE</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{event.venue}</div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Full Event Description */}
-        <div style={{ marginBottom: '32px' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '14px', color: 'var(--text-main)' }}>Event Description</h3>
-          <p style={{ color: 'var(--text-body)', fontSize: '0.98rem', lineHeight: 1.8, whiteSpace: 'pre-line' }}>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.92rem', color: 'var(--text-muted)', lineHeight: 1.8, marginBottom: '32px' }}>
             {event.description}
           </p>
-        </div>
 
-        {/* External Registration or On-Platform Action */}
-        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
-          {regSuccess ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#137333', background: '#E6F4EA', padding: '10px 20px', borderRadius: '999px', fontWeight: 700, fontSize: '0.92rem' }}>
-              <CheckCircle2 size={18} /> You are registered for this event!
-            </div>
-          ) : (
-            <button 
-              onClick={handleEventRegistration} 
-              disabled={registering}
-              className="btn btn-primary"
-              style={{ padding: '12px 28px', fontSize: '0.95rem' }}
-            >
-              <UserCheck size={18} /> {registering ? 'Registering...' : 'Register for Event'}
-            </button>
-          )}
+          {/* Registration Section */}
+          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {regSuccess ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', backgroundColor: 'var(--color-mint-dim)', border: '1px solid var(--color-mint)', color: 'var(--color-mint)', fontFamily: 'var(--font-mono)', fontSize: '0.86rem', fontWeight: 700 }}>
+                <CheckCircle2 size={16} /> YOU ARE REGISTERED FOR THIS EVENT
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleEventRegistration}
+                disabled={registering}
+                className="btn-pixel-gold"
+                style={{ padding: '12px 28px' }}
+              >
+                {registering ? 'REGISTERING...' : 'REGISTER FOR EVENT →'}
+              </button>
+            )}
 
-          {event.registration_url && (
-            <a 
-              href={event.registration_url} 
-              target="_blank" 
-              rel="noreferrer" 
-              className="btn btn-secondary"
-              style={{ padding: '12px 24px', fontSize: '0.95rem' }}
-            >
-              Official Event Link <ExternalLink size={16} />
-            </a>
-          )}
-        </div>
-
-        {error && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#C5221F', marginTop: '16px', fontSize: '0.88rem' }}>
-            <AlertCircle size={16} /> {error}
+            {event.registration_url && (
+              <a
+                href={event.registration_url}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-pixel-outline"
+                style={{ padding: '11px 22px' }}
+              >
+                OFFICIAL LINK <ExternalLink size={14} />
+              </a>
+            )}
           </div>
-        )}
+
+          {error && (
+            <div style={{ marginTop: '16px', color: 'var(--color-coral)', fontFamily: 'var(--font-mono)', fontSize: '0.84rem' }}>
+              ! {error}
+            </div>
+          )}
+
+        </div>
 
       </div>
-
     </div>
   );
 };
