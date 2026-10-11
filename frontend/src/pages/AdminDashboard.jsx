@@ -544,13 +544,14 @@ export const AdminDashboard = () => {
   };
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', paddingBottom: '80px' }} className="animate-fade-in">
+    <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px', fontFamily: 'var(--font-mono)' }} className="animate-fade-in">
       
-      {/* Header Banner (Apple Style Frosted Banner) */}
+      {/* Header Banner - Dark Retro Arcade Pixel Aesthetic */}
       <div style={{ 
-        backgroundColor: '#FFFFFF', 
-        borderBottom: '1px solid rgba(0,0,0,0.06)', 
-        padding: '44px 0 32px 0' 
+        backgroundColor: '#0c141c', 
+        borderBottom: '1px solid var(--border-gold)', 
+        padding: '36px 0 28px 0',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)'
       }}>
         <div className="container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
@@ -559,50 +560,47 @@ export const AdminDashboard = () => {
                 <img 
                   src={data.logo_url.startsWith('/uploads') ? `http://localhost:5000${data.logo_url}` : data.logo_url}
                   alt={data.name}
-                  style={{ width: '56px', height: '56px', borderRadius: '16px', objectFit: 'cover', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                  style={{ width: '56px', height: '56px', border: '2px solid var(--border-gold)', borderRadius: 0, objectFit: 'cover', backgroundColor: '#070c10', boxShadow: '2px 2px 0px #8a7329' }}
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
               ) : null}
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="badge badge-technical">
-                    <ShieldCheck size={14} /> Official Club Workspace
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="badge-pixel tech" style={{ gap: '6px' }}>
+                    <ShieldCheck size={14} /> OFFICIAL CLUB WORKSPACE
                   </span>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>Code: {data.club_code}</span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--color-gold)', fontFamily: 'var(--font-mono)' }}>CODE: {data.club_code}</span>
                 </div>
-                <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '6px', letterSpacing: '-0.025em' }}>
+                <h1 style={{ fontFamily: 'var(--font-pixel)', fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', color: 'var(--text-cream)', marginTop: '8px', letterSpacing: '0.04em' }}>
                   {data.name}
                 </h1>
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <span className="badge" style={{ 
-                backgroundColor: recruitmentOpen ? '#E6F4EA' : '#F8FAFC',
-                color: recruitmentOpen ? '#137333' : '#64748B',
-                border: recruitmentOpen ? '1px solid #CEEAD6' : '1px solid #E2E8F0',
+              <span className={`badge-pixel ${recruitmentOpen ? 'others' : 'coral'}`} style={{ 
                 padding: '8px 16px',
-                fontSize: '0.86rem',
-                fontWeight: 700,
+                fontSize: '0.8rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '8px'
               }}>
                 <span style={{ 
                   width: '8px', 
                   height: '8px', 
                   borderRadius: '50%', 
-                  backgroundColor: recruitmentOpen ? '#137333' : '#94A3B8',
-                  display: 'inline-block' 
+                  backgroundColor: recruitmentOpen ? 'var(--color-mint)' : 'var(--color-coral)',
+                  display: 'inline-block',
+                  boxShadow: recruitmentOpen ? '0 0 6px var(--color-mint)' : '0 0 6px var(--color-coral)'
                 }} />
-                Induction Form: {recruitmentOpen ? 'OPEN' : 'CLOSED'}
+                INDUCTION FORM: {recruitmentOpen ? 'OPEN' : 'CLOSED'}
               </span>
 
               <button
                 type="button"
                 onClick={handleToggleInductionStatus}
                 disabled={actionLoading}
-                className={`btn ${recruitmentOpen ? 'btn-secondary' : 'btn-primary'}`}
+                className={recruitmentOpen ? 'btn-pixel-outline' : 'btn-pixel-gold'}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -611,7 +609,7 @@ export const AdminDashboard = () => {
                   fontSize: '0.84rem'
                 }}
               >
-                {recruitmentOpen ? <ToggleRight size={18} color="#137333" /> : <ToggleLeft size={18} />}
+                {recruitmentOpen ? <ToggleRight size={18} color="var(--color-mint)" /> : <ToggleLeft size={18} />}
                 {recruitmentOpen ? 'Close Induction Form' : 'Open Induction Form'}
               </button>
             </div>
@@ -624,31 +622,30 @@ export const AdminDashboard = () => {
         
         {/* Feedback / Alert Banners */}
         {msg && (
-          <div style={{ backgroundColor: '#E6F4EA', color: '#137333', border: '1px solid #CEEAD6', padding: '12px 18px', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600 }}>
+          <div style={{ backgroundColor: 'rgba(74, 222, 128, 0.15)', color: 'var(--color-mint)', border: '1px solid var(--color-mint)', padding: '12px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: 600 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CheckCircle2 size={16} /> {msg}
             </div>
-            <button type="button" onClick={() => setMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#137333', fontWeight: 700 }}>✕</button>
+            <button type="button" onClick={() => setMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-mint)', fontWeight: 700 }}>✕</button>
           </div>
         )}
         {error && (
-          <div style={{ backgroundColor: '#FCE8E6', color: '#C5221F', border: '1px solid #FAD2CF', padding: '12px 18px', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600 }}>
+          <div style={{ backgroundColor: 'rgba(240, 113, 103, 0.15)', color: 'var(--color-coral)', border: '1px solid var(--color-coral)', padding: '12px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: 600 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertCircle size={16} /> {error}
             </div>
-            <button type="button" onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5221F', fontWeight: 700 }}>✕</button>
+            <button type="button" onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-coral)', fontWeight: 700 }}>✕</button>
           </div>
         )}
 
-        {/* Apple Style Pill Navigation Tabs */}
+        {/* Retro Tab Navigation Bar */}
         <div style={{ 
           display: 'flex', 
-          gap: '6px', 
-          background: 'rgba(245, 245, 247, 0.7)', 
-          padding: '5px', 
-          borderRadius: '999px', 
-          border: '1px solid rgba(0,0,0,0.05)', 
-          marginBottom: '32px', 
+          gap: '8px', 
+          backgroundColor: '#0c141c', 
+          padding: '8px', 
+          border: '1px solid var(--border-card)', 
+          marginBottom: '28px', 
           overflowX: 'auto',
           width: 'fit-content',
           maxWidth: '100%'
@@ -657,7 +654,7 @@ export const AdminDashboard = () => {
             { id: 'overview', label: 'Overview', icon: LayoutDashboard },
             { id: 'members', label: `Members (${data.stats?.members ?? members.length ?? 0})`, icon: Users },
             { id: 'applicants', label: `Applicants (${data.stats?.applications || 0})`, icon: UserCheck },
-            ...(data.slug === 'hncc' || data.id === 1 ? [{ id: 'ai-ranking', label: 'AI Candidate Ranking (HnCC)', icon: Sparkles }] : []),
+            ...(data.slug === 'hncc' || data.id === 1 ? [{ id: 'ai-ranking', label: '★ AI Candidate Ranking (HnCC)', icon: Sparkles }] : []),
             { id: 'profile', label: 'Club Profile & Picture', icon: Edit3 },
             { id: 'form-builder', label: 'Induction Form Builder', icon: FileSpreadsheet },
             { id: 'events', label: `Events (${data.events?.length || 0})`, icon: Calendar },
@@ -670,21 +667,16 @@ export const AdminDashboard = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                className={`filter-btn ${isSel ? 'active' : ''}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '7px 16px',
-                  borderRadius: '999px',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  border: 'none',
-                  backgroundColor: isSel ? '#0071E3' : 'transparent',
-                  color: isSel ? '#FFFFFF' : 'var(--text-muted)',
-                  boxShadow: isSel ? '0 2px 8px rgba(0, 113, 227, 0.25)' : 'none',
+                  padding: '8px 16px',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'var(--transition-smooth)'
+                  whiteSpace: 'nowrap'
                 }}
               >
                 <IconComponent size={14} /> {tab.label}

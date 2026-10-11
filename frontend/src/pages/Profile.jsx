@@ -188,11 +188,12 @@ export const Profile = () => {
   return (
     <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', paddingBottom: '80px' }} className="animate-fade-in">
       
-      {/* Profile Hero Header Banner */}
+      {/* Profile Hero Header Banner - Dark Retro Aesthetic */}
       <div style={{ 
-        backgroundColor: '#FFFFFF', 
-        borderBottom: '1px solid rgba(0,0,0,0.06)', 
-        padding: '44px 0 32px 0' 
+        backgroundColor: '#0c141c', 
+        borderBottom: '1px solid var(--border-gold)', 
+        padding: '36px 0 28px 0',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)'
       }}>
         <div className="container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '24px' }}>
@@ -203,28 +204,31 @@ export const Profile = () => {
                   src={getAvatarSrc(formData.avatar_url)}
                   alt={formData.name}
                   style={{
-                    width: '74px',
-                    height: '74px',
-                    borderRadius: '22px',
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: 0,
                     objectFit: 'cover',
-                    boxShadow: '0 8px 24px rgba(0, 113, 227, 0.15)',
-                    border: '2px solid #FFFFFF'
+                    boxShadow: '2px 2px 0px #8a7329',
+                    border: '2px solid var(--border-gold)',
+                    backgroundColor: '#070c10'
                   }}
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
               ) : (
                 <div style={{
-                  width: '74px',
-                  height: '74px',
-                  borderRadius: '22px',
-                  background: 'linear-gradient(135deg, #0071E3 0%, #00C7BE 100%)',
-                  color: '#FFFFFF',
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: 0,
+                  backgroundColor: '#070c10',
+                  border: '2px solid var(--border-gold)',
+                  color: 'var(--color-gold)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 800,
-                  fontSize: '2rem',
-                  boxShadow: '0 8px 24px rgba(0, 113, 227, 0.25)'
+                  fontFamily: 'var(--font-pixel)',
+                  fontSize: '1.8rem',
+                  boxShadow: '2px 2px 0px #8a7329'
                 }}>
                   {formData.name ? formData.name.charAt(0).toUpperCase() : 'U'}
                 </div>
@@ -232,20 +236,14 @@ export const Profile = () => {
 
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <h1 style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.025em' }}>
-                    {formData.name || 'My Profile'}
+                  <h1 style={{ fontFamily: 'var(--font-pixel)', fontSize: 'clamp(1.4rem, 2.5vw, 1.9rem)', color: 'var(--text-cream)' }}>
+                    {formData.name || 'MY PROFILE'}
                   </h1>
-                  <span className="badge" style={{ 
-                    fontSize: '0.74rem', 
-                    padding: '3px 10px',
-                    backgroundColor: user.role === 'super_admin' ? '#FCE8E6' : user.role === 'club_admin' ? '#FEF7E0' : '#EBF5FF',
-                    color: user.role === 'super_admin' ? '#C5221F' : user.role === 'club_admin' ? '#B08800' : '#0066CC',
-                    border: '1px solid rgba(0,0,0,0.06)'
-                  }}>
-                    {user.role === 'super_admin' ? 'Super Administrator' : user.role === 'club_admin' ? 'Club Administrator' : 'Student Member'}
+                  <span className="badge-pixel gold" style={{ fontSize: '0.74rem' }}>
+                    {user.role === 'super_admin' ? 'SUPER ADMIN' : user.role === 'club_admin' ? 'CLUB ADMIN' : 'STUDENT MEMBER'}
                   </span>
                   {assignedClub && (
-                    <span className="badge badge-technical" style={{ fontSize: '0.74rem' }}>
+                    <span className="badge-pixel tech" style={{ fontSize: '0.74rem' }}>
                       {assignedClub.name}
                     </span>
                   )}
@@ -253,16 +251,16 @@ export const Profile = () => {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '6px', flexWrap: 'wrap', fontSize: '0.86rem', color: 'var(--text-muted)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                    <Mail size={13} /> {formData.email}
+                    <Mail size={13} color="var(--color-gold)" /> {formData.email}
                   </span>
                   {formData.phone && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <Phone size={13} /> {formData.phone}
+                      <Phone size={13} color="var(--color-gold)" /> {formData.phone}
                     </span>
                   )}
                   {formData.department && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <BookOpen size={13} /> {formData.department}
+                      <BookOpen size={13} color="var(--color-gold)" /> {formData.department}
                     </span>
                   )}
                 </div>
@@ -272,13 +270,13 @@ export const Profile = () => {
             {/* Quick Actions */}
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               {user.role === 'club_admin' && (
-                <Link to="/admin/dashboard" className="btn btn-secondary" style={{ padding: '9px 18px', fontSize: '0.84rem' }}>
-                  <Building2 size={15} /> Club Workspace
+                <Link to="/admin/dashboard" className="btn-pixel-gold" style={{ padding: '8px 16px', fontSize: '0.82rem' }}>
+                  <Building2 size={15} /> CLUB WORKSPACE
                 </Link>
               )}
               {user.role === 'student' && (
-                <Link to="/my-applications" className="btn btn-secondary" style={{ padding: '9px 18px', fontSize: '0.84rem' }}>
-                  <FileText size={15} /> My Applications
+                <Link to="/my-applications" className="btn-pixel-outline" style={{ padding: '8px 16px', fontSize: '0.82rem' }}>
+                  <FileText size={15} /> MY APPLICATIONS
                 </Link>
               )}
             </div>
@@ -308,15 +306,14 @@ export const Profile = () => {
           </div>
         )}
 
-        {/* Apple Style Floating Pill Tabs */}
+        {/* Retro Tab Navigation Bar */}
         <div style={{ 
           display: 'flex', 
-          gap: '6px', 
-          background: 'rgba(245, 245, 247, 0.7)', 
-          padding: '5px', 
-          borderRadius: '999px', 
-          border: '1px solid rgba(0,0,0,0.05)', 
-          marginBottom: '32px', 
+          gap: '8px', 
+          backgroundColor: '#0c141c', 
+          padding: '8px', 
+          border: '1px solid var(--border-card)', 
+          marginBottom: '28px', 
           overflowX: 'auto',
           width: 'fit-content',
           maxWidth: '100%'
@@ -335,21 +332,16 @@ export const Profile = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
+                className={`filter-btn ${isSel ? 'active' : ''}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '7px 16px',
-                  borderRadius: '999px',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  border: 'none',
-                  backgroundColor: isSel ? '#0071E3' : 'transparent',
-                  color: isSel ? '#FFFFFF' : 'var(--text-muted)',
-                  boxShadow: isSel ? '0 2px 8px rgba(0, 113, 227, 0.25)' : 'none',
+                  padding: '8px 16px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'var(--transition-smooth)'
+                  whiteSpace: 'nowrap'
                 }}
               >
                 <IconComp size={14} /> {tab.label}

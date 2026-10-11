@@ -299,33 +299,33 @@ export const SuperAdminDashboard = () => {
 
   if (loading) {
     return (
-      <div style={{ backgroundColor: '#FFFFFF', minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: '#64748B', fontSize: '0.95rem' }}>Loading Super Admin Portal...</div>
+      <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ color: 'var(--color-gold)', fontSize: '0.95rem' }}>LOADING SUPER ADMIN PORTAL...</div>
       </div>
     );
   }
 
   return (
-    <div style={{ backgroundColor: '#FFFFFF', minHeight: '100vh', paddingBottom: '80px' }}>
+    <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px', fontFamily: 'var(--font-mono)', color: 'var(--text-cream)' }}>
       
       {/* Header Banner */}
-      <div style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', padding: '36px 0 28px 0' }}>
+      <div style={{ backgroundColor: '#0c141c', borderBottom: '1px solid var(--border-gold)', padding: '36px 0 28px 0', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}>
         <div className="container">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="badge" style={{ backgroundColor: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }}>
-                  <ShieldAlert size={14} /> Super Admin Control Console
+                <span className="badge-pixel coral">
+                  <ShieldAlert size={14} /> SUPER ADMIN CONTROL CONSOLE
                 </span>
-                <span style={{ fontSize: '0.85rem', color: '#64748B' }}>BIT Sindri Campus Platform</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>BIT SINDRI CAMPUS PLATFORM</span>
               </div>
-              <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#0F172A', marginTop: '6px' }}>
-                Platform Governance & Management
+              <h1 style={{ fontFamily: 'var(--font-pixel)', fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', color: 'var(--text-cream)', marginTop: '8px' }}>
+                PLATFORM GOVERNANCE & MANAGEMENT
               </h1>
             </div>
 
-            <button onClick={fetchAllData} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <RefreshCw size={15} /> Refresh Data
+            <button onClick={fetchAllData} className="btn-pixel-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}>
+              <RefreshCw size={15} /> REFRESH DATA
             </button>
           </div>
 
@@ -337,30 +337,30 @@ export const SuperAdminDashboard = () => {
               gap: '16px', 
               marginTop: '28px' 
             }}>
-              <div className="card-panel" style={{ padding: '16px 20px' }}>
-                <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 600 }}>Verified Clubs</div>
-                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
-                  {analytics.clubs.verified_clubs} <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 400 }}>/ {analytics.clubs.total_clubs}</span>
+              <div className="card-panel" style={{ padding: '16px 20px', backgroundColor: '#070c10', border: '1px solid var(--border-card)' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>VERIFIED CLUBS</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-gold)', marginTop: '4px', fontFamily: 'var(--font-pixel)' }}>
+                  {analytics.clubs.verified_clubs} <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)', fontWeight: 400 }}>/ {analytics.clubs.total_clubs}</span>
                 </div>
               </div>
 
-              <div className="card-panel" style={{ padding: '16px 20px' }}>
-                <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 600 }}>Active Recruitments</div>
-                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#047857', marginTop: '2px' }}>
+              <div className="card-panel" style={{ padding: '16px 20px', backgroundColor: '#070c10', border: '1px solid var(--border-card)' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>ACTIVE RECRUITMENTS</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-mint)', marginTop: '4px', fontFamily: 'var(--font-pixel)' }}>
                   {analytics.clubs.recruiting_clubs}
                 </div>
               </div>
 
-              <div className="card-panel" style={{ padding: '16px 20px' }}>
-                <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 600 }}>Total Platform Users</div>
-                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#2563EB', marginTop: '2px' }}>
+              <div className="card-panel" style={{ padding: '16px 20px', backgroundColor: '#070c10', border: '1px solid var(--border-card)' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>TOTAL PLATFORM USERS</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-cyan)', marginTop: '4px', fontFamily: 'var(--font-pixel)' }}>
                   {analytics.users.total_users}
                 </div>
               </div>
 
-              <div className="card-panel" style={{ padding: '16px 20px' }}>
-                <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 600 }}>Total Applications</div>
-                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
+              <div className="card-panel" style={{ padding: '16px 20px', backgroundColor: '#070c10', border: '1px solid var(--border-card)' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>TOTAL APPLICATIONS</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-gold)', marginTop: '4px', fontFamily: 'var(--font-pixel)' }}>
                   {clubs.reduce((acc, c) => acc + (c.total_applications || 0), 0)}
                 </div>
               </div>
@@ -390,36 +390,46 @@ export const SuperAdminDashboard = () => {
           </div>
         )}
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px', marginBottom: '28px' }}>
+        {/* Retro Tabs */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '8px', 
+          backgroundColor: '#0c141c', 
+          padding: '8px', 
+          border: '1px solid var(--border-card)', 
+          marginBottom: '28px', 
+          overflowX: 'auto',
+          width: 'fit-content',
+          maxWidth: '100%'
+        }}>
           <button 
             onClick={() => setActiveTab('clubs')}
-            className={`btn ${activeTab === 'clubs' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+            className={`filter-btn ${activeTab === 'clubs' ? 'active' : ''}`}
+            style={{ padding: '8px 16px', fontSize: '0.82rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Building2 size={15} /> Club Directory & Verification ({clubs.length})
           </button>
 
           <button 
             onClick={() => setActiveTab('users')}
-            className={`btn ${activeTab === 'users' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+            className={`filter-btn ${activeTab === 'users' ? 'active' : ''}`}
+            style={{ padding: '8px 16px', fontSize: '0.82rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Users size={15} /> Users & Admin Roles
           </button>
 
           <button 
             onClick={() => setActiveTab('audit')}
-            className={`btn ${activeTab === 'audit' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+            className={`filter-btn ${activeTab === 'audit' ? 'active' : ''}`}
+            style={{ padding: '8px 16px', fontSize: '0.82rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Activity size={15} /> Audit Log Trail ({auditLogs.length})
           </button>
 
           <button 
             onClick={() => setActiveTab('analytics')}
-            className={`btn ${activeTab === 'analytics' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+            className={`filter-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+            style={{ padding: '8px 16px', fontSize: '0.82rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <FileText size={15} /> Platform Analytics
           </button>

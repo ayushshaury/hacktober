@@ -55,6 +55,14 @@
 
   /* Scanline / Grain overlay */
   --scanline: rgba(0, 0, 0, 0.15);
+
+  /* Compatibility tokens */
+  --bg-main: var(--bg-canvas);
+  --text-main: var(--text-cream);
+  --text-body: var(--text-muted);
+  --text-light: var(--text-dim);
+  --color-secondary: var(--color-gold);
+  --transition-smooth: all 0.15s ease-in-out;
 }
 
 * {
@@ -474,5 +482,109 @@ a {
   .club-room-preview {
     display: block;
   }
+}
+
+/* ============================================================
+   ADMIN DASHBOARD & FORM RETRO COMPATIBILITY
+   ============================================================ */
+.glass-panel,
+.card-panel {
+  background-color: #0c141c;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sharp);
+  color: var(--text-cream);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: var(--radius-sharp);
+}
+
+.badge-technical {
+  background-color: var(--color-cyan-dim);
+  color: var(--color-cyan);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--color-gold);
+  color: var(--text-dark);
+  font-family: var(--font-pixel);
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 9px 18px;
+  border: 1px solid #d4b54e;
+  border-radius: var(--radius-sharp);
+  cursor: pointer;
+  box-shadow: 2px 2px 0px #8a7329;
+  text-transform: uppercase;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-gold-hover);
+  transform: translate(-1px, -1px);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: transparent;
+  color: var(--text-cream);
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 9px 18px;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sharp);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(243, 208, 99, 0.08);
+  border-color: var(--border-gold);
+  color: var(--color-gold);
+}
+
+/* Retro Admin Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+}
+
+th {
+  background-color: #080d12;
+  color: var(--color-gold);
+  font-family: var(--font-pixel);
+  font-size: 0.82rem;
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-card);
+  letter-spacing: 0.04em;
+}
+
+td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-cream);
+  font-size: 0.84rem;
+}
+
+tr:hover td {
+  background-color: rgba(20, 35, 50, 0.35);
 }
 
