@@ -2,7 +2,7 @@ import app from './app.js';
 
 const PORT = process.env.PORT || 5000;
 
-// Start Server (local dev). On Vercel the app is exported from /api/index.js instead.
+// Start server for local dev. On Vercel, vercel.json points the backend service at src/app.js.
 app.listen(PORT, () => {
   console.log(`====================================================`);
   console.log(` BIT Sindri Clubs Dashboard Backend Server Running`);
