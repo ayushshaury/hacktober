@@ -2,10 +2,37 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
+import multer from 'multer';
 import { getDb } from '../db/db.js';
 import { authenticateToken, requireRole, enforceClubIsolation } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Multer storage for custom candidate CSV uploads
+const uploadDir = path.resolve(process.cwd(), 'uploads/csv');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const csvStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, `candidates-${uniqueSuffix}.csv`);
+  }
+});
+
+const uploadCsv = multer({
+  storage: csvStorage,
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.originalname.toLowerCase().endsWith('.csv') || file.mimetype.includes('csv') || file.mimetype === 'text/plain') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .csv files are supported.'));
+    }
+  }
+});
 
 // GET /api/admin/my-club - Fetch assigned club data, stats, social links, announcements, & events
 router.get('/my-club', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
@@ -585,12 +612,24 @@ router.delete('/members/:id', authenticateToken, requireRole('club_admin', 'supe
 
 // POST /api/admin/hncc/candidate-ranking
 // Restricted to authorized HNCC admins and Super Admins
-router.post('/hncc/candidate-ranking', authenticateToken, async (req, res) => {
+router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_file'), async (req, res) => {
+  let uploadedFilePath = req.file ? req.file.path : null;
+  const cleanupFile = () => {
+    if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+      try {
+        fs.unlinkSync(uploadedFilePath);
+      } catch (err) {
+        console.error('Failed to remove temp uploaded file:', err);
+      }
+    }
+  };
+
   try {
     const isSuperAdmin = req.user.role === 'super_admin';
-    const isHnccAdmin = req.user.role === 'club_admin' && (req.user.club_slug === 'hncc' || req.user.club_id === 1);
+    const isHnccAdmin = req.user.role === 'club_admin' && (req.user.club_slug === 'hncc' || req.user.club_id === 1 || req.user.email?.includes('hncc'));
 
     if (!isSuperAdmin && !isHnccAdmin) {
+      cleanupFile();
       return res.status(403).json({
         error: 'Access restricted. Only authorized HnCC administrators can access the AI candidate ranking model.'
       });
@@ -600,6 +639,7 @@ router.post('/hncc/candidate-ranking', authenticateToken, async (req, res) => {
     const validDomains = ['CP / DSA', 'Web Development', 'AI / ML'];
 
     if (!domain || !validDomains.includes(domain)) {
+      cleanupFile();
       return res.status(400).json({
         error: `Please select a valid domain from: ${validDomains.join(', ')}`
       });
@@ -607,11 +647,41 @@ router.post('/hncc/candidate-ranking', authenticateToken, async (req, res) => {
 
     const count = parseInt(top_n, 10);
     if (isNaN(count) || count < 1 || count > 500) {
+      cleanupFile();
       return res.status(400).json({
         error: 'Please enter a valid candidate count between 1 and 500.'
       });
     }
 
+    // IF an uploaded CSV file is provided, compute dynamically using the custom CSV
+    if (uploadedFilePath) {
+      const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
+      execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--csv_path', uploadedFilePath], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+        cleanupFile();
+        if (err) {
+          console.error('Python execution error on custom CSV:', err, stderr);
+          return res.status(500).json({ error: 'Failed to process uploaded CSV with AI ranking model. Please verify CSV format.' });
+        }
+        try {
+          const result = JSON.parse(stdout);
+          return res.json({
+            status: 'success',
+            domain,
+            top_n: count,
+            total_available: result.total_available,
+            custom_source: true,
+            source_filename: req.file.originalname,
+            candidates: result.candidates
+          });
+        } catch (parseErr) {
+          console.error('Failed to parse Python script output on custom CSV:', stdout, parseErr);
+          return res.status(500).json({ error: 'Invalid response from AI ranking model.' });
+        }
+      });
+      return;
+    }
+
+    // Otherwise, check precomputed cache first for instant sub-20ms response on default dataset
     const cachePath = path.resolve(process.cwd(), 'src/data/hncc_ranked_cache.json');
     if (fs.existsSync(cachePath)) {
       try {
@@ -627,6 +697,7 @@ router.post('/hncc/candidate-ranking', authenticateToken, async (req, res) => {
             domain,
             top_n: count,
             total_available: data.domains[domain].length,
+            custom_source: false,
             candidates
           });
         }
@@ -635,9 +706,9 @@ router.post('/hncc/candidate-ranking', authenticateToken, async (req, res) => {
       }
     }
 
-    // Fallback: execute python model script directly
+    // Fallback: execute python model script directly on default dataset
     const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
-    execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString()], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString()], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         console.error('Python execution error:', err, stderr);
         return res.status(500).json({ error: 'Failed to run AI ranking model on server.' });
@@ -649,6 +720,7 @@ router.post('/hncc/candidate-ranking', authenticateToken, async (req, res) => {
           domain,
           top_n: count,
           total_available: result.total_available,
+          custom_source: false,
           candidates: result.candidates
         });
       } catch (parseErr) {
@@ -658,6 +730,7 @@ router.post('/hncc/candidate-ranking', authenticateToken, async (req, res) => {
     });
 
   } catch (err) {
+    cleanupFile();
     console.error('Error in /api/admin/hncc/candidate-ranking:', err);
     res.status(500).json({ error: 'Server error processing candidate ranking.' });
   }

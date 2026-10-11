@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, Users, Award, ShieldAlert, Phone, BookOpen, CheckCircle, RefreshCw, Lock } from 'lucide-react';
+import { Sparkles, Users, Award, ShieldAlert, Phone, BookOpen, CheckCircle, RefreshCw, Lock, UploadCloud, FileText, X } from 'lucide-react';
 
 const DOMAINS = ['CP / DSA', 'Web Development', 'AI / ML'];
 
@@ -9,15 +9,36 @@ export const HnccCandidateRanking = () => {
   
   const [selectedDomain, setSelectedDomain] = useState('Web Development');
   const [topN, setTopN] = useState(10);
+  const [csvFile, setCsvFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
 
   // Check if current user is an authorized HnCC Administrator or Super Admin
   const isAuthorized = user && (
     user.role === 'super_admin' || 
     (user.role === 'club_admin' && (user.club_slug === 'hncc' || user.club_id === 1 || user.email?.includes('hncc')))
   );
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        setError('Please select a valid .csv file.');
+        return;
+      }
+      setCsvFile(file);
+      setError('');
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setCsvFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleGenerateRanking = async (e) => {
     if (e) e.preventDefault();
@@ -36,16 +57,19 @@ export const HnccCandidateRanking = () => {
     setError('');
 
     try {
+      const formData = new FormData();
+      formData.append('domain', selectedDomain);
+      formData.append('top_n', count.toString());
+      if (csvFile) {
+        formData.append('csv_file', csvFile);
+      }
+
       const res = await fetch('/api/admin/hncc/candidate-ranking', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          domain: selectedDomain,
-          top_n: count
-        })
+        body: formData
       });
 
       const data = await res.json();
@@ -285,6 +309,93 @@ export const HnccCandidateRanking = () => {
 
           </div>
 
+          {/* Upload Custom CSV (Optional) */}
+          <div style={{ marginTop: '22px', paddingTop: '18px', borderTop: '1px dashed var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+              <label style={{
+                fontFamily: 'var(--font-pixel)',
+                fontSize: '0.88rem',
+                color: 'var(--color-gold)',
+                letterSpacing: '0.04em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <UploadCloud size={16} /> 3. UPLOAD CANDIDATES CSV (OPTIONAL)
+              </label>
+              {csvFile && (
+                <span style={{ fontSize: '0.74rem', color: 'var(--color-mint)', fontWeight: 700 }}>
+                  ● CUSTOM DATASET ACTIVE: {(csvFile.size / 1024).toFixed(1)} KB
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".csv,text/csv"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+                id="hncc-csv-upload-input"
+              />
+
+              {!csvFile ? (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="filter-btn"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 16px',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <UploadCloud size={14} /> CHOOSE CSV FILE...
+                </button>
+              ) : (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '6px 14px',
+                  backgroundColor: '#070c10',
+                  border: '1px solid var(--color-mint)',
+                  fontSize: '0.82rem',
+                  color: 'var(--text-cream)'
+                }}>
+                  <FileText size={15} color="var(--color-mint)" />
+                  <span style={{ fontWeight: 600 }}>{csvFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={handleRemoveFile}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--color-coral)',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    title="Remove custom CSV"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              )}
+
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {csvFile 
+                  ? 'Model will dynamically evaluate applicants from this uploaded file.' 
+                  : 'Leave blank to evaluate the default official 2k26 induction responses.'}
+              </span>
+            </div>
+          </div>
+
         </form>
 
         {error && (
@@ -329,7 +440,16 @@ export const HnccCandidateRanking = () => {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {results.custom_source ? (
+                <span className="badge-pixel mint" title={results.source_filename}>
+                  CUSTOM CSV: {results.source_filename || 'UPLOADED FILE'}
+                </span>
+              ) : (
+                <span className="badge-pixel gold">
+                  OFFICIAL 2K26 DATASET
+                </span>
+              )}
               <span className="badge-pixel gold">
                 {results.candidates.length} RETURNED
               </span>

@@ -172,25 +172,85 @@ def parse_candidates_from_csv(csv_path: str = CSV_PATH) -> List[Dict[str, Any]]:
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"Candidate dataset not found at {csv_path}")
     df = pd.read_csv(csv_path)
-    df.columns = df.columns.str.strip()
+    df.columns = [str(c).strip() for c in df.columns]
+
+    # Find Communication column
     comm_col = "How do you rate yourself in your Communication Skills ?"
-    df["comm_numeric"] = pd.to_numeric(df[comm_col], errors="coerce")
-    
+    if comm_col not in df.columns:
+        for c in df.columns:
+            if "communication" in c.lower() or "comm" in c.lower():
+                comm_col = c
+                break
+
+    if comm_col in df.columns:
+        df["comm_numeric"] = pd.to_numeric(df[comm_col], errors="coerce")
+    else:
+        df["comm_numeric"] = 3.0  # Default neutral score if column absent
+
+    # Find Programming Language / Skills columns
+    lang_col = "Which Programming Language do you know ?"
+    if lang_col not in df.columns:
+        for c in df.columns:
+            if "programming language" in c.lower() or ("language" in c.lower() and "know" in c.lower()):
+                lang_col = c
+                break
+
+    tech_col = "Any Technical Skills"
+    if tech_col not in df.columns:
+        for c in df.columns:
+            if "technical skill" in c.lower() or "skills" in c.lower():
+                tech_col = c
+                break
+
+    name_col = "Name"
+    if name_col not in df.columns:
+        for c in df.columns:
+            if "name" in c.lower() and "club" not in c.lower():
+                name_col = c
+                break
+
+    phone_col = "Contact Number (Whatsapp Preferred)"
+    if phone_col not in df.columns:
+        for c in df.columns:
+            if "contact" in c.lower() or "phone" in c.lower() or "whatsapp" in c.lower() or "mobile" in c.lower():
+                phone_col = c
+                break
+
+    branch_col = "Branch"
+    if branch_col not in df.columns:
+        for c in df.columns:
+            if "branch" in c.lower() or "department" in c.lower():
+                branch_col = c
+                break
+
     candidates = []
     for idx, row in df.iterrows():
-        lang = str(row.get("Which Programming Language do you know ?", "")).strip()
-        tech = str(row.get("Any Technical Skills", "")).strip()
-        skills_text = f"{lang}. {tech}"
-        name = str(row.get("Name", "")).strip()
-        phone = str(row.get("Contact Number (Whatsapp Preferred)", "")).strip()
-        branch = str(row.get("Branch", "")).strip()
-        
+        lang = str(row.get(lang_col, "")) if lang_col in df.columns else ""
+        tech = str(row.get(tech_col, "")) if tech_col in df.columns else ""
+        if lang and tech and lang != "nan" and tech != "nan":
+            skills_text = f"{lang}. {tech}"
+        elif lang and lang != "nan":
+            skills_text = str(lang)
+        elif tech and tech != "nan":
+            skills_text = str(tech)
+        else:
+            skills_text = ""
+
+        raw_name = str(row.get(name_col, f"Candidate #{idx+1}")) if name_col in df.columns else f"Candidate #{idx+1}"
+        name = "Anonymous" if raw_name == "nan" or not raw_name.strip() else raw_name.strip()
+
+        raw_phone = str(row.get(phone_col, "N/A")) if phone_col in df.columns else "N/A"
+        phone = "N/A" if raw_phone == "nan" or not raw_phone.strip() else raw_phone.strip()
+
+        raw_branch = str(row.get(branch_col, "N/A")) if branch_col in df.columns else "N/A"
+        branch = "N/A" if raw_branch == "nan" or not raw_branch.strip() else raw_branch.strip()
+
         candidates.append({
             "candidate_id": str(idx),
             "candidate_name": name,
             "phone_number": phone,
             "branch": branch,
-            "skills_text": skills_text,
+            "skills_text": skills_text.strip(),
             "communication_rating": row["comm_numeric"]
         })
     return candidates
@@ -213,7 +273,7 @@ def generate_and_cache_all_rankings():
         json.dump(cache_data, f, indent=2, ensure_ascii=False)
     return cache_data
 
-def get_ranked_candidates(domain: str, top_n: int) -> Dict[str, Any]:
+def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = None) -> Dict[str, Any]:
     if domain not in TRACKS:
         raise ValueError(f"Invalid domain '{domain}'. Choose from: {list(TRACKS.keys())}")
     if top_n < 1:
@@ -221,7 +281,20 @@ def get_ranked_candidates(domain: str, top_n: int) -> Dict[str, Any]:
     if top_n > 500:
         top_n = 500
 
-    # Check cache first for instant response
+    # If custom CSV provided, compute directly from that CSV
+    if csv_path and os.path.exists(csv_path):
+        candidates = parse_candidates_from_csv(csv_path)
+        model = ClubShortlistingModel()
+        results = model.shortlist(candidates, domain, top_n=top_n)
+        return {
+            "domain": domain,
+            "top_n": top_n,
+            "total_available": len(candidates),
+            "custom_source": True,
+            "candidates": results
+        }
+
+    # Otherwise check cache first for instant response
     if os.path.exists(CACHE_JSON_PATH):
         try:
             with open(CACHE_JSON_PATH, "r", encoding="utf-8") as f:
@@ -235,12 +308,13 @@ def get_ranked_candidates(domain: str, top_n: int) -> Dict[str, Any]:
                     "domain": domain,
                     "top_n": top_n,
                     "total_available": len(all_domain_candidates),
+                    "custom_source": False,
                     "candidates": sliced
                 }
         except Exception:
             pass
 
-    # If cache not present or invalid, compute dynamically
+    # Fallback compute dynamically from default dataset
     candidates = parse_candidates_from_csv()
     model = ClubShortlistingModel()
     results = model.shortlist(candidates, domain, top_n=top_n)
@@ -248,6 +322,7 @@ def get_ranked_candidates(domain: str, top_n: int) -> Dict[str, Any]:
         "domain": domain,
         "top_n": top_n,
         "total_available": len(candidates),
+        "custom_source": False,
         "candidates": results
     }
 
@@ -255,6 +330,7 @@ def main():
     parser = argparse.ArgumentParser(description="HnCC AI Candidate Shortlisting")
     parser.add_argument("--domain", type=str, default="Web Development", help="CP / DSA, Web Development, or AI / ML")
     parser.add_argument("--top_n", type=int, default=10, help="Number of top candidates (1-500)")
+    parser.add_argument("--csv_path", type=str, default=None, help="Optional path to custom candidate CSV")
     parser.add_argument("--build-cache", action="store_true", help="Precompute and cache all domains")
     args = parser.parse_args()
 
@@ -263,8 +339,9 @@ def main():
         print(json.dumps({"status": "success", "cached_domains": list(data["domains"].keys())}))
         return
 
-    result = get_ranked_candidates(args.domain, args.top_n)
+    result = get_ranked_candidates(args.domain, args.top_n, csv_path=args.csv_path)
     print(json.dumps(result, ensure_ascii=False))
 
 if __name__ == "__main__":
     main()
+
