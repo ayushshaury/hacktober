@@ -1,22 +1,21 @@
 {
-  "name": "backend",
+  "name": "bit-sindri-clubs-server",
   "version": "1.0.0",
-  "description": "Express backend for the Hacktober project",
+  "description": "Backend server for BIT Sindri Unified Clubs Dashboard",
   "main": "src/index.js",
+  "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "node --watch src/index.js",
+    "init-db": "node src/db/init.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^18.0.6",
-    "express": "^5.2.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.4.0",
+    "pg": "^8.23.1"
   }
 }

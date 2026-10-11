@@ -1,0 +1,171 @@
+-- BIT Sindri Unified Clubs Dashboard Database Schema for PostgreSQL
+
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role VARCHAR(50) NOT NULL DEFAULT 'student', -- 'student', 'club_admin', 'super_admin'
+  phone VARCHAR(50),
+  avatar_url TEXT,
+  department VARCHAR(255),
+  roll_number VARCHAR(100),
+  batch_year VARCHAR(100),
+  bio TEXT,
+  linkedin_url TEXT,
+  github_url TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS clubs (
+  id SERIAL PRIMARY KEY,
+  club_code VARCHAR(50) UNIQUE NOT NULL, -- e.g. BIT-001
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) UNIQUE NOT NULL,
+  category VARCHAR(100) NOT NULL,
+  short_description TEXT,
+  description TEXT,
+  events_summary TEXT,
+  ml_keywords TEXT,
+  logo_url TEXT,
+  website_url TEXT,
+  recruitment_open INTEGER DEFAULT 0, -- 0 or 1
+  verified INTEGER DEFAULT 1, -- 0 or 1
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS club_admins (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  role VARCHAR(50) DEFAULT 'admin',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS social_links (
+  id SERIAL PRIMARY KEY,
+  club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  platform VARCHAR(100) NOT NULL, -- 'Instagram', 'LinkedIn', 'GitHub', 'YouTube', 'Facebook', 'X/Twitter', 'Official Website', 'Other'
+  url TEXT NOT NULL,
+  is_verified INTEGER DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS events (
+  id SERIAL PRIMARY KEY,
+  club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  event_date VARCHAR(50) NOT NULL,
+  start_time VARCHAR(50),
+  end_time VARCHAR(50),
+  venue VARCHAR(255),
+  registration_url TEXT,
+  image_url TEXT,
+  status VARCHAR(50) DEFAULT 'Published', -- 'Draft', 'Published', 'Registration Open', 'Registration Closed', 'Completed', 'Cancelled'
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS event_registrations (
+  id SERIAL PRIMARY KEY,
+  event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS induction_forms (
+  id SERIAL PRIMARY KEY,
+  club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  is_active INTEGER DEFAULT 1,
+  opens_at TIMESTAMP,
+  closes_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS form_questions (
+  id SERIAL PRIMARY KEY,
+  form_id INTEGER NOT NULL REFERENCES induction_forms(id) ON DELETE CASCADE,
+  question TEXT NOT NULL,
+  question_type VARCHAR(50) NOT NULL, -- 'short_text', 'long_text', 'single_choice', 'multiple_choice', 'dropdown', 'yes_no', 'number', 'email', 'url', 'file_upload'
+  required INTEGER DEFAULT 1,
+  display_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS form_options (
+  id SERIAL PRIMARY KEY,
+  question_id INTEGER NOT NULL REFERENCES form_questions(id) ON DELETE CASCADE,
+  option_text TEXT NOT NULL,
+  display_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS induction_applications (
+  id SERIAL PRIMARY KEY,
+  form_id INTEGER NOT NULL REFERENCES induction_forms(id) ON DELETE CASCADE,
+  club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(50) DEFAULT 'Submitted', -- 'Submitted', 'Under Review', 'Shortlisted', 'Selected', 'Rejected', 'Waitlisted'
+  submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS application_answers (
+  id SERIAL PRIMARY KEY,
+  application_id INTEGER NOT NULL REFERENCES induction_applications(id) ON DELETE CASCADE,
+  question_id INTEGER NOT NULL REFERENCES form_questions(id) ON DELETE CASCADE,
+  answer TEXT
+);
+
+CREATE TABLE IF NOT EXISTS announcements (
+  id SERIAL PRIMARY KEY,
+  club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  is_pinned INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS club_views (
+  id SERIAL PRIMARY KEY,
+  club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  student_id INTEGER,
+  viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  club_id INTEGER,
+  action VARCHAR(100) NOT NULL,
+  entity_type VARCHAR(100) NOT NULL,
+  entity_id INTEGER,
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  metadata TEXT
+);
+
+CREATE TABLE IF NOT EXISTS club_members (
+  id SERIAL PRIMARY KEY,
+  club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255),
+  phone VARCHAR(50),
+  position VARCHAR(100) NOT NULL DEFAULT 'Core Member',
+  department VARCHAR(100),
+  batch_year VARCHAR(50),
+  joined_date VARCHAR(50) DEFAULT CURRENT_DATE,
+  avatar_url TEXT,
+  status VARCHAR(50) DEFAULT 'Active', -- 'Active', 'Alumni', 'Probation', 'Inactive'
+  bio TEXT,
+  linkedin_url TEXT,
+  github_url TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
