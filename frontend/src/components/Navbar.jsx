@@ -1,10 +1,8 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Compass, Sparkles, User, LogOut, 
-  ShieldAlert, LayoutDashboard, FileText
-} from 'lucide-react';
+import { PixelIcon } from './PixelIcon';
+import { Search, LogOut, LayoutDashboard, ShieldAlert, User, FileText } from 'lucide-react';
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
@@ -16,239 +14,221 @@ export const Navbar = () => {
     navigate('/login');
   };
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => {
+    if (path === '/' && location.pathname === '/') return true;
+    if (path !== '/' && location.pathname.startsWith(path)) return true;
+    return false;
+  };
 
   return (
-    <nav style={{ 
-      backgroundColor: 'rgba(255, 255, 255, 0.82)', 
-      backdropFilter: 'blur(24px) saturate(190%)',
-      WebkitBackdropFilter: 'blur(24px) saturate(190%)',
-      borderBottom: '1px solid rgba(0, 0, 0, 0.06)', 
-      position: 'sticky', 
-      top: 0, 
+    <nav style={{
+      backgroundColor: 'rgba(9, 14, 19, 0.96)',
+      borderBottom: '1px solid var(--border-gold-dim)',
+      position: 'sticky',
+      top: 0,
       zIndex: 100,
-      transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+      backdropFilter: 'blur(8px)',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)'
     }}>
-      <div className="container" style={{ height: '68px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="container" style={{
+        height: '66px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16px'
+      }}>
         
-        {/* Left: Brand Logo & Title */}
+        {/* Left: Pixel Logo & Brand */}
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-          <div style={{ 
-            width: '38px', 
-            height: '38px', 
-            borderRadius: '11px', 
-            background: 'linear-gradient(135deg, #0F172A 0%, #0071E3 100%)', 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            width: '36px',
+            height: '36px',
+            border: '1px solid var(--border-gold)',
+            backgroundColor: '#0c141c',
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
-            color: '#FFFFFF',
-            boxShadow: '0 4px 12px rgba(0, 113, 227, 0.25)',
-            transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-          }}
-          className="apple-box-hover"
-          >
-            <Compass size={21} />
+            boxShadow: '1px 1px 0px #8a7329'
+          }}>
+            <PixelIcon name="building" size={26} />
           </div>
           <div>
-            <div style={{ fontSize: '1.08rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
-              BIT Sindri <span style={{ color: 'var(--color-secondary)' }}>Clubs</span>
+            <div style={{
+              fontFamily: 'var(--font-pixel)',
+              fontSize: '1.05rem',
+              fontWeight: 700,
+              color: 'var(--text-cream)',
+              letterSpacing: '0.04em',
+              lineHeight: 1.1
+            }}>
+              BIT SINDRI
             </div>
-            <div style={{ fontSize: '0.66rem', color: 'var(--text-light)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              Institute Portal
+            <div style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.66rem',
+              color: 'var(--border-gold)',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase'
+            }}>
+              CLUBS PORTAL
             </div>
           </div>
         </Link>
 
-        {/* Center Nav Links (Apple Floating Pill Menu) */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '4px',
-          background: 'rgba(245, 245, 247, 0.7)',
-          padding: '4px',
-          borderRadius: '999px',
-          border: '1px solid rgba(0, 0, 0, 0.04)'
+        {/* Center: Retro Navigation Links */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '24px'
         }}>
-          <Link 
-            to="/" 
-            style={{ 
-              padding: '6px 14px', 
-              borderRadius: '999px',
-              fontSize: '0.86rem', 
-              fontWeight: 600, 
-              color: isActive('/') ? '#0071E3' : 'var(--text-muted)',
-              backgroundColor: isActive('/') ? '#FFFFFF' : 'transparent',
-              boxShadow: isActive('/') ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}
-          >
-            Home
-          </Link>
-
-          <Link 
-            to="/clubs" 
-            style={{ 
-              padding: '6px 14px', 
-              borderRadius: '999px',
-              fontSize: '0.86rem', 
-              fontWeight: 600, 
-              color: isActive('/clubs') ? '#0071E3' : 'var(--text-muted)',
-              backgroundColor: isActive('/clubs') ? '#FFFFFF' : 'transparent',
-              boxShadow: isActive('/clubs') ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}
-          >
-            Clubs
-          </Link>
-
-          <Link 
-            to="/events" 
-            style={{ 
-              padding: '6px 14px', 
-              borderRadius: '999px',
-              fontSize: '0.86rem', 
-              fontWeight: 600, 
-              color: isActive('/events') ? '#0071E3' : 'var(--text-muted)',
-              backgroundColor: isActive('/events') ? '#FFFFFF' : 'transparent',
-              boxShadow: isActive('/events') ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}
-          >
-            Events
-          </Link>
-
-          <Link 
-            to="/recommendations" 
-            style={{ 
-              padding: '6px 14px', 
-              borderRadius: '999px',
-              fontSize: '0.86rem', 
-              fontWeight: 600, 
-              color: isActive('/recommendations') ? '#0071E3' : '#0071E3',
-              backgroundColor: isActive('/recommendations') ? '#FFFFFF' : 'transparent',
-              boxShadow: isActive('/recommendations') ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}
-          >
-            <Sparkles size={14} color="#0071E3" /> AI Match
-          </Link>
+          {[
+            { path: '/', label: 'HOME' },
+            { path: '/clubs', label: 'CLUBS' },
+            { path: '/events', label: 'EVENTS' },
+            { path: '/recommendations', label: 'AI MATCH' }
+          ].map(item => {
+            const active = isActive(item.path);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                style={{
+                  fontFamily: 'var(--font-pixel)',
+                  fontSize: '0.92rem',
+                  letterSpacing: '0.06em',
+                  fontWeight: 700,
+                  color: active ? 'var(--color-gold)' : 'var(--text-muted)',
+                  textDecoration: 'none',
+                  padding: '8px 2px',
+                  borderBottom: active ? '2px solid var(--color-gold)' : '2px solid transparent',
+                  transition: 'all 0.15s ease',
+                  textShadow: active ? '0 0 8px rgba(243, 208, 99, 0.4)' : 'none'
+                }}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
 
           {user && user.role === 'student' && (
-            <Link 
-              to="/my-applications" 
-              style={{ 
-                padding: '6px 14px', 
-                borderRadius: '999px',
-                fontSize: '0.86rem', 
-                fontWeight: 600, 
-                color: isActive('/my-applications') ? '#0071E3' : 'var(--text-muted)',
-                backgroundColor: isActive('/my-applications') ? '#FFFFFF' : 'transparent',
-                boxShadow: isActive('/my-applications') ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+            <Link
+              to="/my-applications"
+              style={{
+                fontFamily: 'var(--font-pixel)',
+                fontSize: '0.85rem',
+                letterSpacing: '0.04em',
+                fontWeight: 700,
+                color: isActive('/my-applications') ? 'var(--color-gold)' : 'var(--text-muted)',
+                padding: '8px 2px',
+                borderBottom: isActive('/my-applications') ? '2px solid var(--color-gold)' : '2px solid transparent',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+                gap: '5px'
               }}
             >
-              <FileText size={14} /> My Applications
+              <FileText size={13} /> APPLICATIONS
             </Link>
           )}
         </div>
 
-        {/* Right Auth / User Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Right: Search & Sign In / User Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          
+          {/* Search Trigger Button */}
+          <Link
+            to="/clubs"
+            style={{
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid var(--border-gold)',
+              backgroundColor: 'transparent',
+              color: 'var(--text-cream)',
+              transition: 'all 0.15s ease',
+              boxShadow: '1px 1px 0px #8a7329'
+            }}
+            title="Search Clubs"
+          >
+            <Search size={16} />
+          </Link>
+
           {user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              
-              {/* Super Admin Access */}
+              {/* Role Shortcut */}
               {user.role === 'super_admin' && (
-                <Link to="/super-admin" className="btn btn-outline" style={{ padding: '6px 14px', fontSize: '0.82rem', borderColor: '#DC2626', color: '#DC2626', borderRadius: '999px' }}>
-                  <ShieldAlert size={14} /> Super Admin
+                <Link
+                  to="/super-admin"
+                  className="btn-pixel-outline"
+                  style={{ padding: '6px 12px', fontSize: '0.78rem', borderColor: 'var(--color-coral)', color: 'var(--color-coral)' }}
+                >
+                  <ShieldAlert size={13} /> SUPER ADMIN
                 </Link>
               )}
 
-              {/* Club Admin Access */}
               {(user.role === 'club_admin' || user.role === 'super_admin') && (
-                <Link to="/admin/dashboard" className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: '0.82rem', borderRadius: '999px' }}>
-                  <LayoutDashboard size={14} /> Club Workspace
+                <Link
+                  to="/admin/dashboard"
+                  className="btn-pixel-outline"
+                  style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                >
+                  <LayoutDashboard size={13} /> WORKSPACE
                 </Link>
               )}
 
-              {/* My Profile Link */}
-              <Link 
+              {/* User Profile */}
+              <Link
                 to="/profile"
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  padding: '5px 14px', 
-                  backgroundColor: isActive('/profile') ? '#EBF5FF' : 'rgba(255, 255, 255, 0.95)', 
-                  borderRadius: '999px', 
-                  border: isActive('/profile') ? '1px solid #BAE0FD' : '1px solid rgba(0, 0, 0, 0.08)',
-                  boxShadow: isActive('/profile') ? '0 2px 8px rgba(0, 113, 227, 0.15)' : '0 2px 6px rgba(0,0,0,0.03)',
-                  textDecoration: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 12px',
+                  border: '1px solid var(--border-card)',
+                  backgroundColor: '#0c141c',
+                  color: 'var(--text-cream)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.82rem',
+                  textDecoration: 'none'
                 }}
-                className="apple-box-hover"
-                title="Open My Profile"
               >
-                {user.avatar_url ? (
-                  <img
-                    src={user.avatar_url.startsWith('/uploads') ? `http://localhost:5000${user.avatar_url}` : user.avatar_url}
-                    alt={user.name}
-                    style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }}
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                ) : (
-                  <User size={14} color="#0071E3" />
-                )}
-                <span style={{ fontSize: '0.86rem', fontWeight: 600, color: isActive('/profile') ? '#0071E3' : 'var(--text-main)' }}>
-                  My Profile
-                </span>
-                <span className="badge" style={{ 
-                  fontSize: '0.68rem', 
-                  padding: '2px 8px',
-                  backgroundColor: user.role === 'super_admin' ? '#FCE8E6' : user.role === 'club_admin' ? '#FEF7E0' : '#EBF5FF',
-                  color: user.role === 'super_admin' ? '#C5221F' : user.role === 'club_admin' ? '#B08800' : '#0066CC'
-                }}>
-                  {user.role === 'super_admin' ? 'Super Admin' : user.role === 'club_admin' ? 'Club Admin' : 'Student'}
-                </span>
+                <User size={14} color="var(--color-gold)" />
+                <span>{user.name?.split(' ')[0] || 'Profile'}</span>
               </Link>
 
-              <button 
-                onClick={handleLogout} 
-                style={{ 
-                  background: 'none', 
-                  border: '1px solid rgba(0, 0, 0, 0.08)', 
-                  padding: '8px', 
-                  borderRadius: '50%', 
-                  color: 'var(--text-muted)', 
-                  cursor: 'pointer',
+              <button
+                type="button"
+                onClick={handleLogout}
+                style={{
+                  width: '36px',
+                  height: '36px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                  background: 'none',
+                  border: '1px solid var(--border-card)',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer'
                 }}
-                className="apple-box-hover"
                 title="Log out"
               >
                 <LogOut size={15} />
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Link to="/login" className="btn btn-secondary" style={{ padding: '7px 16px', fontSize: '0.85rem' }}>
-                Sign In
-              </Link>
-              <Link to="/register" className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.85rem' }}>
-                Join Portal
-              </Link>
-            </div>
+            <Link
+              to="/login"
+              className="btn-pixel-outline"
+              style={{
+                padding: '7px 16px',
+                fontSize: '0.85rem'
+              }}
+            >
+              SIGN IN
+            </Link>
           )}
+
         </div>
 
       </div>

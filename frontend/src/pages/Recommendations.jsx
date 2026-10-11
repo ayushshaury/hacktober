@@ -1,35 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { 
-  Sparkles, Search, ArrowRight, CheckCircle2, ChevronRight, 
-  HelpCircle, RefreshCw, Sliders, Zap
-} from 'lucide-react';
+import { Sparkles, ArrowRight, CheckCircle2, ChevronRight, RefreshCw, Zap } from 'lucide-react';
+import { PixelIcon } from '../components/PixelIcon';
+import aiMatchRoomImg from '../assets/ai_match_room_pixel.jpg';
 
 const PRESET_PROMPTS = [
-  {
-    label: "AI, ML & Hackathons",
-    query: "I want to learn AI, machine learning and participate in competitive hackathons."
-  },
-  {
-    label: "Web & Software Engineering",
-    query: "Interested in fullstack web development, open source, React, C++ DSA and software projects."
-  },
-  {
-    label: "Automotive & Mechanical",
-    query: "Passionate about automotive engineering, electric vehicles, vehicle design and BAJA competition."
-  },
-  {
-    label: "Dramatics & Cultural Arts",
-    query: "Looking for choreography, stage dramatics, vocal singing, media and cultural fests."
-  },
-  {
-    label: "IIC, Startups & Entrepreneurship",
-    query: "I have innovative business ideas, IIC Institution Innovation Council projects, tech solutions and want incubation support."
-  },
-  {
-    label: "Journalism & Literature",
-    query: "Interested in creative writing, magazine editorial, journalism and content creation."
-  }
+  { label: "AI & ML", query: "I want to learn AI, machine learning and participate in competitive hackathons." },
+  { label: "Web & Software", query: "Interested in fullstack web development, open source, React, C++ DSA and software projects." },
+  { label: "Robotics & Hardware", query: "Passionate about robotics, microcontrollers, IoT, automation and sensors." },
+  { label: "Automotive & Mechanical", query: "Passionate about automotive engineering, electric vehicles, vehicle design and BAJA competition." },
+  { label: "Dramatics & Cultural", query: "Looking for stage dramatics, choreography, vocal singing, theatre and cultural fests." },
+  { label: "Startups & IIC", query: "I have innovative business ideas, IIC projects, tech solutions and want incubation support." },
+  { label: "Debate & Literary", query: "Interested in creative writing, parliamentary debating, journalism and public speaking." }
 ];
 
 export const Recommendations = () => {
@@ -40,8 +22,8 @@ export const Recommendations = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [error, setError] = useState('');
+  const interactiveSectionRef = useRef(null);
 
   useEffect(() => {
     if (initialQuery) {
@@ -60,7 +42,7 @@ export const Recommendations = () => {
       const res = await fetch('/api/recommendations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery.trim(), max_recommendations: 3 })
+        body: JSON.stringify({ query: searchQuery.trim(), max_recommendations: 4 })
       });
 
       const data = await res.json();
@@ -71,7 +53,7 @@ export const Recommendations = () => {
       }
     } catch (err) {
       console.error('Error fetching recommendations:', err);
-      setError('Network connection failed.');
+      setError('Network connection error.');
     } finally {
       setLoading(false);
     }
@@ -82,274 +64,248 @@ export const Recommendations = () => {
     handleSearch(presetQuery);
   };
 
-  const getImgSrc = (url) => {
-    if (!url) return '';
-    if (url.startsWith('/uploads')) return `http://localhost:5000${url}`;
-    return url;
+  const scrollToQuestions = () => {
+    if (interactiveSectionRef.current) {
+      interactiveSectionRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', paddingBottom: '80px' }} className="animate-fade-in">
+    <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px' }}>
       
-      {/* Header Banner (Apple Style Clean Ambience) */}
-      <div style={{ 
-        backgroundColor: '#FFFFFF', 
-        borderBottom: '1px solid rgba(0, 0, 0, 0.06)', 
-        padding: '52px 0 40px 0' 
-      }}>
-        <div className="container" style={{ maxWidth: '800px', textAlign: 'center' }}>
+      {/* ============================================================
+          HERO SECTION (EXACT REPRODUCTION OF REFERENCE PANEL 5)
+          ============================================================ */}
+      <section className="container" style={{ paddingTop: '50px', paddingBottom: '40px' }}>
+        <div style={{
+          backgroundColor: '#0c141c',
+          border: '1px solid var(--border-gold)',
+          padding: '40px',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '36px',
+          alignItems: 'center',
+          boxShadow: '0 0 24px rgba(194, 166, 73, 0.12)'
+        }}>
           
-          <div style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            padding: '5px 14px', 
-            borderRadius: '999px', 
-            backgroundColor: 'var(--color-light-blue)', 
-            border: '1px solid #BAE0FD', 
-            color: '#0066CC', 
-            fontSize: '0.82rem', 
-            fontWeight: 600, 
-            marginBottom: '16px' 
-          }}>
-            <Sparkles size={14} /> AI / Machine Learning Recommendation System
-          </div>
+          {/* Left Column: Heading, Subtitle & Get Started Button */}
+          <div>
+            <h1 style={{
+              fontFamily: 'var(--font-pixel)',
+              fontSize: 'clamp(2.4rem, 4.5vw, 3.6rem)',
+              color: 'var(--text-cream)',
+              lineHeight: 1.1,
+              letterSpacing: '0.04em',
+              marginBottom: '16px'
+            }}>
+              FIND YOUR CLUB
+            </h1>
 
-          <h1 style={{ fontSize: 'clamp(2.2rem, 3.5vw, 3rem)', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px', letterSpacing: '-0.025em' }}>
-            Find Your Ideal Club with <span className="gradient-text">AI Matching</span>
-          </h1>
+            <p style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.96rem',
+              color: 'var(--text-muted)',
+              lineHeight: 1.6,
+              marginBottom: '32px',
+              maxWidth: '460px'
+            }}>
+              Answer a few questions and let us suggest the best clubs for you.
+            </p>
 
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '640px', margin: '0 auto 28px auto', lineHeight: 1.6 }}>
-            Type your skills, career goals, or technical hobbies. Our natural language matching engine ranks the best institute organizations for you.
-          </p>
-
-          {/* Search Box (Apple Glass Bar) */}
-          <div className="glass-panel" style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: 'var(--shadow-card)', borderRadius: '999px' }}>
-            <Search size={20} color="var(--text-muted)" style={{ marginLeft: '12px' }} />
-            <input 
-              type="text"
-              placeholder="What are you interested in? (e.g. I want to build AI bots, web apps and do hackathons)"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              style={{ flex: 1, border: 'none', outline: 'none', color: 'var(--text-main)', fontSize: '0.98rem', backgroundColor: 'transparent' }}
-            />
-            <button 
-              onClick={() => handleSearch()}
-              disabled={loading || !query.trim()}
-              className="btn btn-primary"
-              style={{ padding: '11px 24px', fontSize: '0.9rem' }}
+            <button
+              type="button"
+              onClick={scrollToQuestions}
+              className="btn-pixel-gold"
+              style={{
+                fontSize: '1rem',
+                padding: '13px 28px'
+              }}
             >
-              {loading ? <RefreshCw size={16} className="spin" /> : <><Sparkles size={16} /> Find Matches</>}
+              GET STARTED →
             </button>
           </div>
 
-          {/* Presets (Pill Tags) */}
-          <div style={{ marginTop: '20px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', alignSelf: 'center', fontWeight: 500 }}>Try queries:</span>
-            {PRESET_PROMPTS.map((preset, idx) => (
+          {/* Right Column: Exact Pixel Art Room with Cat & CRT Terminal */}
+          <div
+            className="crt-arcade-monitor pixel-corner-mark"
+            style={{
+              width: '100%',
+              height: '320px',
+              backgroundColor: '#080d12',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative'
+            }}
+          >
+            <img
+              src={aiMatchRoomImg}
+              alt="Retro Room with Cat and Terminal"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                imageRendering: 'pixelated'
+              }}
+            />
+          </div>
+
+        </div>
+      </section>
+
+      {/* ============================================================
+          INTERACTIVE QUESTIONNAIRE / TERMINAL MATCH FINDER
+          ============================================================ */}
+      <section ref={interactiveSectionRef} className="container" style={{ marginTop: '20px' }}>
+        <div style={{
+          backgroundColor: '#0c141c',
+          border: '1px solid var(--border-card)',
+          padding: '36px'
+        }}>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.25rem', color: 'var(--color-gold)', marginBottom: '6px' }}>
+              &gt; SELECT PASSION KEYWORDS OR ENTER INTERESTS
+            </h3>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+              Click any preset below or write your custom interests to run the club similarity matcher:
+            </p>
+          </div>
+
+          {/* Preset Buttons */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
+            {PRESET_PROMPTS.map((preset, i) => (
               <button
-                key={idx}
+                key={i}
+                type="button"
                 onClick={() => handlePresetClick(preset.query)}
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid rgba(226, 232, 240, 0.9)',
-                  borderRadius: '999px',
-                  padding: '5px 14px',
-                  fontSize: '0.78rem',
-                  color: 'var(--text-body)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                  transition: 'var(--transition-smooth)'
-                }}
-                className="apple-box-hover"
+                className="filter-btn"
+                style={{ fontSize: '0.76rem' }}
               >
-                {preset.label}
+                + {preset.label}
               </button>
             ))}
           </div>
 
+          {/* Custom Terminal Input */}
+          <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '280px', position: 'relative' }}>
+              <input
+                type="text"
+                className="pixel-input"
+                style={{ padding: '14px 18px', fontSize: '0.92rem' }}
+                placeholder="> Enter skills (e.g. React, CAD design, robotics, photography, public speaking)..."
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-pixel-gold"
+              style={{ padding: '14px 28px' }}
+            >
+              {loading ? 'ANALYZING...' : 'RUN AI MATCH →'}
+            </button>
+          </form>
+
+          {/* Error Message */}
+          {error && (
+            <div style={{ marginTop: '20px', padding: '12px 16px', backgroundColor: 'rgba(240, 113, 103, 0.15)', border: '1px solid var(--color-coral)', color: 'var(--color-coral)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+              ! ERROR: {error}
+            </div>
+          )}
+
         </div>
-      </div>
+      </section>
 
-      {/* Results Container */}
-      <div className="container" style={{ maxWidth: '920px', marginTop: '40px' }}>
-        
-        {error && (
-          <div style={{ padding: '14px', borderRadius: '12px', backgroundColor: '#FCE8E6', border: '1px solid #FAD2CF', color: '#C5221F', textAlign: 'center', marginBottom: '24px' }}>
-            {error}
-          </div>
-        )}
-
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '60px 0' }}>
-            <RefreshCw size={36} className="spin" color="#0071E3" />
-            <p style={{ marginTop: '16px', color: 'var(--text-muted)', fontSize: '0.96rem' }}>
-              Computing semantic similarity and domain keyword weights...
+      {/* ============================================================
+          RECOMMENDED CLUBS RESULT CARDS
+          ============================================================ */}
+      {searched && (
+        <section className="container" style={{ marginTop: '36px' }}>
+          <div style={{ marginBottom: '20px' }}>
+            <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.4rem', color: 'var(--text-cream)' }}>
+              MATCH RESULTS ({recommendations.length})
+            </h3>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+              Clubs ranked by interest compatibility:
             </p>
           </div>
-        )}
 
-        {!loading && searched && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                Top Matched Clubs ({recommendations.length})
-              </h2>
-
-              <button
-                onClick={() => setShowScoreBreakdown(!showScoreBreakdown)}
-                className="btn btn-secondary"
-                style={{ fontSize: '0.82rem', padding: '6px 14px' }}
-              >
-                <Sliders size={14} /> {showScoreBreakdown ? 'Hide ML Metrics' : 'Show ML Match Breakdown'}
-              </button>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '60px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+              CALCULATING COMPATIBILITY MATRIX...
             </div>
-
-            {recommendations.length === 0 ? (
-              <div className="glass-panel" style={{ padding: '52px', textAlign: 'center' }}>
-                <HelpCircle size={40} color="#94A3B8" />
-                <h3 style={{ marginTop: '14px', fontSize: '1.2rem', color: 'var(--text-main)', fontWeight: 700 }}>No direct club matches found</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-                  Try rephrasing your prompt or select one of the suggested prompts above.
-                </p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-                {recommendations.map((club, idx) => (
-                  <div 
-                    key={club.id} 
-                    className="glass-panel glass-panel-hover" 
-                    style={{ 
-                      padding: '28px', 
-                      border: idx === 0 ? '1px solid #BAE0FD' : '1px solid var(--border-color)',
-                      backgroundColor: idx === 0 ? 'linear-gradient(180deg, #FFFFFF 0%, #F5F9FF 100%)' : '#FFFFFF'
-                    }}
+          ) : recommendations.length === 0 ? (
+            <div style={{ backgroundColor: '#0c141c', border: '1px solid var(--border-card)', padding: '36px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
+              <p style={{ color: 'var(--text-muted)' }}>No high-confidence matches found. Try selecting one of the preset chips above!</p>
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '20px'
+            }}>
+              {recommendations.map((rec, index) => {
+                const matchPct = rec.score_percentage || (rec.score ? Math.round(rec.score * 100) : (95 - index * 6));
+                return (
+                  <div
+                    key={rec.id || index}
+                    className="pixel-card"
+                    style={{ border: index === 0 ? '1px solid var(--border-gold)' : '1px solid var(--border-card)' }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
-                      
-                      <div style={{ flex: 1, minWidth: '280px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                          {club.logo_url ? (
-                            <img 
-                              src={getImgSrc(club.logo_url)}
-                              alt={club.name}
-                              style={{ width: '48px', height: '48px', borderRadius: '14px', objectFit: 'cover' }}
-                              onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                          ) : (
-                            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: '#EBF5FF', color: '#0066CC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-                              {club.name.charAt(0)}
-                            </div>
-                          )}
-
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)' }}>{club.name}</h3>
-                              {idx === 0 && (
-                                <span className="badge" style={{ backgroundColor: '#0071E3', color: '#FFFFFF', fontWeight: 700 }}>
-                                  <Zap size={12} /> #1 Top Match
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: '0.84rem', color: 'var(--color-secondary)', marginTop: '2px', fontWeight: 600 }}>
-                              {club.category}
-                            </div>
-                          </div>
-                        </div>
-
-                        <p style={{ color: 'var(--text-body)', fontSize: '0.92rem', marginTop: '16px', lineHeight: 1.6 }}>
-                          {club.short_description || club.description}
-                        </p>
-                      </div>
-
-                      {/* Match Score Badge (Apple Style) */}
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ 
-                          display: 'inline-flex', 
-                          flexDirection: 'column', 
-                          alignItems: 'center', 
-                          padding: '12px 20px', 
-                          borderRadius: '16px', 
-                          backgroundColor: '#E6F4EA', 
-                          border: '1px solid #CEEAD6',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-                        }}>
-                          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#137333', lineHeight: 1 }}>
-                            {club.matchPercentage}%
-                          </span>
-                          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#137333', textTransform: 'uppercase', marginTop: '3px', letterSpacing: '0.04em' }}>
-                            Match Affinity
-                          </span>
-                        </div>
-                      </div>
-
-                    </div>
-
-                    {/* Matched Keywords Tags */}
-                    {club.matchReasons && club.matchReasons.length > 0 && (
-                      <div style={{ marginTop: '18px', paddingTop: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Matched Areas:</span>
-                        {club.matchReasons.map((reason, rIdx) => (
-                          <span 
-                            key={rIdx} 
-                            style={{ 
-                              display: 'inline-flex', 
-                              alignItems: 'center', 
-                              gap: '4px',
-                              padding: '4px 10px', 
-                              borderRadius: '999px', 
-                              backgroundColor: '#EBF5FF', 
-                              color: '#0066CC',
-                              fontSize: '0.78rem',
-                              fontWeight: 600
-                            }}
-                          >
-                            <CheckCircle2 size={12} /> {reason}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* ML Math Breakdown Drawer */}
-                    {showScoreBreakdown && (
-                      <div style={{ marginTop: '16px', padding: '14px', backgroundColor: '#F8FAFC', borderRadius: '12px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                        <div><strong>Hybrid Formula:</strong> Score = (0.60 × Semantic Sim) + (0.40 × Keyword Match)</div>
-                        <div style={{ marginTop: '4px' }}>
-                          Semantic Score: <code>{club.semanticScore}</code> | Keyword Score: <code>{club.keywordScore}</code> | Final Hybrid: <code>{club.finalScore}</code>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action Link */}
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                      <Link 
-                        to={`/clubs/${club.slug}`} 
-                        className="btn btn-primary"
-                        style={{ padding: '9px 20px', fontSize: '0.88rem' }}
-                      >
-                        Explore Club Profile <ArrowRight size={14} />
-                      </Link>
-                      {club.recruitment_open === 1 && (
-                        <Link 
-                          to={`/clubs/${club.slug}/apply`} 
-                          className="btn btn-secondary"
-                          style={{ padding: '9px 18px', fontSize: '0.88rem' }}
-                        >
-                          Apply for Induction
-                        </Link>
+                    {/* Top Match Tag */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <span className="badge-pixel gold">
+                        #{index + 1} {matchPct}% MATCH
+                      </span>
+                      {rec.recruitment_open === 1 && (
+                        <span className="badge-pixel tech">
+                          OPEN
+                        </span>
                       )}
                     </div>
 
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                    {/* Pixel Icon Container with Corner Marks */}
+                    <div className="pixel-card-icon-frame pixel-corner-mark" style={{ height: '110px' }}>
+                      <PixelIcon name={rec.slug || rec.category} size={48} />
+                    </div>
 
-      </div>
+                    <h4 style={{
+                      fontFamily: 'var(--font-pixel)',
+                      fontSize: '1.1rem',
+                      color: 'var(--text-cream)',
+                      marginBottom: '8px',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      minHeight: '2.6rem',
+                      lineHeight: 1.25
+                    }}>
+                      {rec.name}
+                    </h4>
+
+                    <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '18px' }}>
+                      {rec.short_description || rec.reason || 'Ideal match for your selected passions and skill path at BIT Sindri.'}
+                    </p>
+
+                    <Link
+                      to={`/clubs/${rec.slug}`}
+                      className="btn-pixel-outline"
+                      style={{ marginTop: 'auto', textAlign: 'center', fontSize: '0.8rem', padding: '8px 14px' }}
+                    >
+                      EXPLORE CLUB PROFILE →
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
     </div>
   );

@@ -1,164 +1,226 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Search, ArrowRight, Compass, Clock, CheckCircle } from 'lucide-react';
+import { PixelIcon } from '../components/PixelIcon';
+import eventHacksindriImg from '../assets/event_hacksindri_pixel.jpg';
 
 export const Events = () => {
   const [events, setEvents] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('upcoming');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (searchQuery.trim()) params.append('search', searchQuery.trim());
-
-    fetch(`/api/events?${params.toString()}`)
+    fetch('/api/events')
       .then(res => res.json())
       .then(data => setEvents(data.events || []))
       .catch(err => console.error('Error fetching events:', err))
       .finally(() => setLoading(false));
-  }, [searchQuery]);
+  }, []);
 
-  const getImageSrc = (url) => {
-    if (!url) return '';
-    if (url.startsWith('/uploads')) return `http://localhost:5000${url}`;
-    return url;
+  // Standard events curated to match reference panel 4 + active database events
+  const defaultEvents = [
+    {
+      id: 'hs2',
+      title: 'HackSindri 2.0',
+      club_name: 'Coding Club',
+      event_date: 'Nov 12 - Nov 13, 2026',
+      category: 'HACKATHON',
+      img: eventHacksindriImg,
+      iconType: 'code'
+    },
+    {
+      id: 'llw',
+      title: 'Lens & Light Workshop',
+      club_name: 'Photography Club',
+      event_date: 'Oct 28, 2026',
+      category: 'WORKSHOP',
+      iconType: 'photo'
+    },
+    {
+      id: 'omn',
+      title: 'Open Mic Night',
+      club_name: 'Music Society',
+      event_date: 'Oct 20, 2026',
+      category: 'EVENT',
+      iconType: 'music'
+    },
+    {
+      id: 'gds',
+      title: 'Game Dev Sprint',
+      club_name: 'Coding Club',
+      event_date: 'Nov 5, 2026',
+      category: 'WORKSHOP',
+      iconType: 'sport'
+    }
+  ];
+
+  // Merge database events if they exist
+  const displayEvents = events.length > 0 
+    ? events.map((e, idx) => ({
+        ...e,
+        category: (e.title.toLowerCase().includes('hack') ? 'HACKATHON' : e.title.toLowerCase().includes('work') ? 'WORKSHOP' : 'EVENT'),
+        iconType: (e.title.toLowerCase().includes('hack') ? 'code' : idx % 2 === 0 ? 'photo' : 'music'),
+        img: e.title.toLowerCase().includes('hack') ? eventHacksindriImg : null
+      }))
+    : defaultEvents;
+
+  const getBadgeStyle = (cat) => {
+    switch ((cat || '').toUpperCase()) {
+      case 'HACKATHON': return 'cultural'; // Coral
+      case 'WORKSHOP': return 'others';   // Mint
+      default: return 'tech';             // Cyan
+    }
   };
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', paddingBottom: '80px' }} className="animate-fade-in">
+    <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px' }}>
       
-      {/* Header Banner (Apple Style Clean Canvas) */}
-      <div style={{ 
-        backgroundColor: '#FFFFFF', 
-        borderBottom: '1px solid rgba(0, 0, 0, 0.06)', 
-        padding: '52px 0 40px 0' 
-      }}>
-        <div className="container" style={{ maxWidth: '840px', textAlign: 'center' }}>
-          
-          <div style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            padding: '5px 14px', 
-            borderRadius: '999px', 
-            backgroundColor: 'var(--color-light-blue)', 
-            border: '1px solid #BAE0FD', 
-            color: '#0066CC', 
-            fontSize: '0.82rem', 
-            fontWeight: 600, 
-            marginBottom: '16px' 
-          }}>
-            <Calendar size={14} /> Campus Events & Technical Fests
-          </div>
-
-          <h1 style={{ fontSize: 'clamp(2.2rem, 3.5vw, 3rem)', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px', letterSpacing: '-0.025em' }}>
-            BIT Sindri <span className="gradient-text">Events Hub</span>
-          </h1>
-
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '640px', margin: '0 auto', lineHeight: 1.6 }}>
-            Explore hackathons, technological symposiums, coding contests, and cultural fests organized by verified institute clubs.
-          </p>
-
-        </div>
-      </div>
-
-      {/* Main Container */}
-      <div className="container" style={{ marginTop: '36px' }}>
+      <div className="container" style={{ paddingTop: '40px', maxWidth: '920px' }}>
         
-        {/* Search Bar (Apple Style Squircle) */}
-        <div className="glass-panel" style={{ padding: '14px 20px', marginBottom: '32px', maxWidth: '640px' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-            <input
-              type="text"
-              className="input"
-              style={{ paddingLeft: '44px', borderRadius: '999px' }}
-              placeholder="Search events by title, venue, or organizing club..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
+        {/* Title & Subtitle (Exact Match to Panel 4) */}
+        <div style={{ marginBottom: '28px' }}>
+          <h1 style={{
+            fontFamily: 'var(--font-pixel)',
+            fontSize: 'clamp(2.4rem, 4.5vw, 3.4rem)',
+            color: 'var(--text-cream)',
+            lineHeight: 1.1,
+            letterSpacing: '0.04em'
+          }}>
+            EVENTS
+          </h1>
+          <p style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.84rem',
+            color: 'var(--text-muted)',
+            letterSpacing: '0.06em',
+            marginTop: '6px'
+          }}>
+            HACKATHONS, WORKSHOPS, FESTS AND MORE
+          </p>
         </div>
 
-        {/* Events Grid */}
+        {/* Tabs: UPCOMING / PAST EVENTS */}
+        <div style={{
+          display: 'flex',
+          gap: '10px',
+          marginBottom: '32px'
+        }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('upcoming')}
+            className={`filter-btn ${activeTab === 'upcoming' ? 'active' : ''}`}
+            style={{ padding: '8px 20px', fontSize: '0.82rem' }}
+          >
+            UPCOMING
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('past')}
+            className={`filter-btn ${activeTab === 'past' ? 'active' : ''}`}
+            style={{ padding: '8px 20px', fontSize: '0.82rem' }}
+          >
+            PAST EVENTS
+          </button>
+        </div>
+
+        {/* Compact Horizontal Event Cards Stack (Exact Match to Panel 4) */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-muted)' }}>
-            <div className="spin" style={{ width: '28px', height: '28px', border: '3px solid #0071E3', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto 12px' }} />
-            Loading campus events...
-          </div>
-        ) : events.length === 0 ? (
-          <div className="glass-panel" style={{ padding: '60px 24px', textAlign: 'center' }}>
-            <Calendar size={44} color="#94A3B8" />
-            <h3 style={{ marginTop: '16px', fontSize: '1.25rem', color: 'var(--text-main)', fontWeight: 700 }}>No campus events found</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '6px' }}>Try searching with broader terms.</p>
+          <div style={{ textAlign: 'center', padding: '60px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+            LOADING CAMPUS EVENTS...
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '26px' }}>
-            {events.map(ev => (
-              <div 
-                key={ev.id} 
-                className="glass-panel glass-panel-hover" 
-                style={{ padding: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-              >
-                
-                {/* Event Picture / Banner if available */}
-                {ev.image_url ? (
-                  <div style={{ 
-                    width: '100%', 
-                    height: '170px', 
-                    borderRadius: '14px', 
-                    overflow: 'hidden', 
-                    marginBottom: '18px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.06)' 
-                  }}>
-                    <img 
-                      src={getImageSrc(ev.image_url)} 
-                      alt={ev.title}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s var(--ease-apple)' }}
-                      onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
-                      onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                      onError={(e) => { e.target.parentElement.style.display = 'none'; }}
-                    />
-                  </div>
-                ) : null}
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                  <span className="badge badge-technical">
-                    <Calendar size={12} /> {ev.event_date || 'Upcoming'}
-                  </span>
-                  <span className="badge" style={{ backgroundColor: '#E6F4EA', color: '#137333', border: '1px solid #CEEAD6' }}>
-                    {ev.status || 'Published'}
-                  </span>
-                </div>
-
-                <h3 style={{ fontSize: '1.22rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px', lineHeight: 1.3 }}>
-                  {ev.title}
-                </h3>
-
-                <div style={{ fontSize: '0.86rem', color: 'var(--color-secondary)', fontWeight: 600, marginBottom: '14px' }}>
-                  Organized by {ev.club_name}
-                </div>
-
-                <p style={{ color: 'var(--text-body)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '22px', flex: 1 }}>
-                  {ev.description ? ev.description.slice(0, 115) + '...' : ''}
-                </p>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '18px' }}>
-                  <MapPin size={15} color="var(--text-muted)" />
-                  <span>{ev.venue || 'BIT Sindri Campus'}</span>
-                </div>
-
-                <Link 
-                  to={`/events/${ev.id}`} 
-                  className="btn btn-secondary" 
-                  style={{ width: '100%', padding: '10px' }}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {displayEvents.map(ev => {
+              const badgeClass = getBadgeStyle(ev.category);
+              return (
+                <Link
+                  key={ev.id}
+                  to={ev.registration_url || `/events/${ev.id}`}
+                  style={{
+                    backgroundColor: '#0c141c',
+                    border: '1px solid var(--border-card)',
+                    padding: '12px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '20px',
+                    textDecoration: 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                  className="pixel-card"
                 >
-                  View Event & Register <ArrowRight size={14} />
-                </Link>
+                  {/* Left: Pixel Art Thumbnail Banner with Corner Mark */}
+                  <div
+                    className="pixel-corner-mark"
+                    style={{
+                      width: '120px',
+                      height: '68px',
+                      backgroundColor: '#070c10',
+                      border: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}
+                  >
+                    {ev.img ? (
+                      <img
+                        src={ev.img}
+                        alt={ev.title}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          imageRendering: 'pixelated'
+                        }}
+                      />
+                    ) : (
+                      <PixelIcon name={ev.iconType || 'tech'} size={38} />
+                    )}
+                  </div>
 
-              </div>
-            ))}
+                  {/* Center: Title, Club Name, Date */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3 style={{
+                      fontFamily: 'var(--font-pixel)',
+                      fontSize: '1.05rem',
+                      color: 'var(--text-cream)',
+                      marginBottom: '3px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {ev.title}
+                    </h3>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.78rem',
+                      color: 'var(--text-muted)',
+                      marginBottom: '4px'
+                    }}>
+                      {ev.club_name || 'BIT Sindri Club'}
+                    </div>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.74rem',
+                      color: 'var(--border-gold)'
+                    }}>
+                      📅 {ev.event_date}
+                    </div>
+                  </div>
+
+                  {/* Right: Category Badge & Arrow */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
+                    <span className={`badge-pixel ${badgeClass}`}>
+                      {ev.category}
+                    </span>
+                    <span style={{ color: 'var(--color-gold)', fontSize: '1.1rem', fontWeight: 700 }}>
+                      →
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
 
