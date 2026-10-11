@@ -5,9 +5,10 @@ import {
   Plus, Trash2, CheckCircle2, ShieldCheck, Eye, Users, ToggleLeft, 
   ToggleRight, AlertCircle, FileSpreadsheet, UserCheck, Search, 
   Filter, ChevronDown, ChevronUp, EyeOff, Globe, Phone, Mail, 
-  UserPlus, Pencil, Award, ExternalLink
+  UserPlus, Pencil, Award, ExternalLink, Sparkles
 } from 'lucide-react';
 import { ImageUploader } from '../components/ImageUploader';
+import { HnccCandidateRanking } from '../components/HnccCandidateRanking';
 
 export const AdminDashboard = () => {
   const { user, token } = useAuth();
@@ -656,6 +657,7 @@ export const AdminDashboard = () => {
             { id: 'overview', label: 'Overview', icon: LayoutDashboard },
             { id: 'members', label: `Members (${data.stats?.members ?? members.length ?? 0})`, icon: Users },
             { id: 'applicants', label: `Applicants (${data.stats?.applications || 0})`, icon: UserCheck },
+            ...(data.slug === 'hncc' || data.id === 1 ? [{ id: 'ai-ranking', label: 'AI Candidate Ranking (HnCC)', icon: Sparkles }] : []),
             { id: 'profile', label: 'Club Profile & Picture', icon: Edit3 },
             { id: 'form-builder', label: 'Induction Form Builder', icon: FileSpreadsheet },
             { id: 'events', label: `Events (${data.events?.length || 0})`, icon: Calendar },
@@ -1089,6 +1091,13 @@ export const AdminDashboard = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* TAB 3.5: HNCC AI CANDIDATE RANKING */}
+        {activeTab === 'ai-ranking' && (data.slug === 'hncc' || data.id === 1) && (
+          <div style={{ backgroundColor: '#0c141c', padding: '28px', border: '1px solid var(--border-gold-dim)', borderRadius: '4px' }}>
+            <HnccCandidateRanking />
           </div>
         )}
 

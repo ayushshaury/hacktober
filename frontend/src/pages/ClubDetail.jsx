@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PixelIcon } from '../components/PixelIcon';
-import { Users, Calendar, Award, GraduationCap, ExternalLink, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Users, Calendar, Award, GraduationCap, ExternalLink, ArrowLeft, CheckCircle, Sparkles } from 'lucide-react';
+import { HnccCandidateRanking } from '../components/HnccCandidateRanking';
 import codingClubRoomImg from '../assets/coding_club_room_pixel.jpg';
 
 export const ClubDetail = () => {
@@ -299,27 +300,36 @@ export const ClubDetail = () => {
 
         </div>
 
-        {/* Tabs: ABOUT, EVENTS, TEAM, GALLERY, FAQ */}
+        {/* Tabs: ABOUT, EVENTS, TEAM, GALLERY, FAQ, plus AI CANDIDATE RANKING for HnCC */}
         <div style={{
           display: 'flex',
           gap: '8px',
           marginBottom: '20px',
           flexWrap: 'wrap'
         }}>
-          {['about', 'events', 'team', 'gallery', 'faq'].map(tabKey => {
-            const isSel = activeTab === tabKey;
+          {[
+            { key: 'about', label: 'ABOUT' },
+            { key: 'events', label: 'EVENTS' },
+            { key: 'team', label: 'TEAM' },
+            { key: 'gallery', label: 'GALLERY' },
+            { key: 'faq', label: 'FAQ' },
+            ...(club.slug === 'hncc' ? [{ key: 'ai-ranking', label: 'AI CANDIDATE RANKING' }] : [])
+          ].map(tab => {
+            const isSel = activeTab === tab.key;
             return (
               <button
-                key={tabKey}
+                key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tabKey)}
+                onClick={() => setActiveTab(tab.key)}
                 className={`filter-btn ${isSel ? 'active' : ''}`}
                 style={{
                   padding: '8px 18px',
-                  fontSize: '0.82rem'
+                  fontSize: '0.82rem',
+                  color: tab.key === 'ai-ranking' && !isSel ? 'var(--color-gold)' : undefined,
+                  borderColor: tab.key === 'ai-ranking' && !isSel ? 'var(--border-gold-dim)' : undefined
                 }}
               >
-                {tabKey.toUpperCase()}
+                {tab.key === 'ai-ranking' ? `★ ${tab.label}` : tab.label}
               </button>
             );
           })}
@@ -423,6 +433,10 @@ export const ClubDetail = () => {
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === 'ai-ranking' && club.slug === 'hncc' && (
+            <HnccCandidateRanking />
           )}
         </div>
 

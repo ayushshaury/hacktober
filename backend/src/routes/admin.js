@@ -1,4 +1,7 @@
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { execFile } from 'child_process';
 import { getDb } from '../db/db.js';
 import { authenticateToken, requireRole, enforceClubIsolation } from '../middleware/auth.js';
 
@@ -577,6 +580,86 @@ router.delete('/members/:id', authenticateToken, requireRole('club_admin', 'supe
   } catch (err) {
     console.error('Error deleting club member:', err);
     res.status(500).json({ error: 'Failed to delete club member' });
+  }
+});
+
+// POST /api/admin/hncc/candidate-ranking
+// Restricted to authorized HNCC admins and Super Admins
+router.post('/hncc/candidate-ranking', authenticateToken, async (req, res) => {
+  try {
+    const isSuperAdmin = req.user.role === 'super_admin';
+    const isHnccAdmin = req.user.role === 'club_admin' && (req.user.club_slug === 'hncc' || req.user.club_id === 1);
+
+    if (!isSuperAdmin && !isHnccAdmin) {
+      return res.status(403).json({
+        error: 'Access restricted. Only authorized HnCC administrators can access the AI candidate ranking model.'
+      });
+    }
+
+    const { domain, top_n } = req.body;
+    const validDomains = ['CP / DSA', 'Web Development', 'AI / ML'];
+
+    if (!domain || !validDomains.includes(domain)) {
+      return res.status(400).json({
+        error: `Please select a valid domain from: ${validDomains.join(', ')}`
+      });
+    }
+
+    const count = parseInt(top_n, 10);
+    if (isNaN(count) || count < 1 || count > 500) {
+      return res.status(400).json({
+        error: 'Please enter a valid candidate count between 1 and 500.'
+      });
+    }
+
+    const cachePath = path.resolve(process.cwd(), 'src/data/hncc_ranked_cache.json');
+    if (fs.existsSync(cachePath)) {
+      try {
+        const raw = fs.readFileSync(cachePath, 'utf8');
+        const data = JSON.parse(raw);
+        if (data.domains && data.domains[domain]) {
+          const candidates = data.domains[domain].slice(0, count).map((c, i) => ({
+            ...c,
+            rank: i + 1
+          }));
+          return res.json({
+            status: 'success',
+            domain,
+            top_n: count,
+            total_available: data.domains[domain].length,
+            candidates
+          });
+        }
+      } catch (cacheErr) {
+        console.error('Error reading HnCC cache, falling back to python script:', cacheErr);
+      }
+    }
+
+    // Fallback: execute python model script directly
+    const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
+    execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString()], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        console.error('Python execution error:', err, stderr);
+        return res.status(500).json({ error: 'Failed to run AI ranking model on server.' });
+      }
+      try {
+        const result = JSON.parse(stdout);
+        return res.json({
+          status: 'success',
+          domain,
+          top_n: count,
+          total_available: result.total_available,
+          candidates: result.candidates
+        });
+      } catch (parseErr) {
+        console.error('Failed to parse Python script output:', stdout, parseErr);
+        return res.status(500).json({ error: 'Invalid response from AI ranking model.' });
+      }
+    });
+
+  } catch (err) {
+    console.error('Error in /api/admin/hncc/candidate-ranking:', err);
+    res.status(500).json({ error: 'Server error processing candidate ranking.' });
   }
 });
 

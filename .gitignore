@@ -40,3 +40,8 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Private candidate data (protected)
+backend/src/data/*.csv
+backend/src/data/*.json
+!backend/src/data/.gitkeep
