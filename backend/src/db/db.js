@@ -14,12 +14,27 @@ const { Pool, types } = pg;
 // Parse int8 (BIGINT, COUNT(*) in Postgres) as Javascript number
 types.setTypeParser(types.builtins.INT8, (val) => (val === null ? null : parseInt(val, 10)));
 
-const DATABASE_URL =
+const RAW_DATABASE_URL =
   process.env.DATABASE_URL ||
   process.env.SUPABASE_DB_URL ||
   process.env.POSTGRES_URL ||
   process.env.POSTGRESQL_URL ||
   '';
+
+export const hasDatabaseUrl = Boolean(RAW_DATABASE_URL);
+
+// Strip ORM/pooler hint params node-postgres doesn't understand; keep sslmode.
+const DATABASE_URL = RAW_DATABASE_URL
+  .replace(/([?&])(pgbouncer|connection_limit|prepareThreshold|prepared_statement_cache)=([^&]*)/g, '$1')
+  .replace(/\?&/, '?')
+  .replace(/[?&]$/, '');
+
+if (!hasDatabaseUrl) {
+  console.warn(
+    '[db] DATABASE_URL is not set - falling back to localhost PostgreSQL. ' +
+    'Set DATABASE_URL (Supabase pooler URI) in Vercel -> Settings -> Environment Variables.'
+  );
+}
 
 const isSupabase = /\.supabase\.|supabase\.co/i.test(DATABASE_URL) ||
   Boolean(process.env.SUPABASE_URL && (process.env.DB_HOST || '').includes('supabase'));

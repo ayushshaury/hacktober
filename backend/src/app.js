@@ -11,7 +11,7 @@ import adminRoutes from './routes/admin.js';
 import inductionRoutes from './routes/induction.js';
 import recommendationsRoutes from './routes/recommendations.js';
 import uploadRoutes from './routes/upload.js';
-import { getDb } from './db/db.js';
+import { getDb, hasDatabaseUrl } from './db/db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -52,6 +52,9 @@ app.get('/api/health', async (req, res) => {
       status: 'error',
       service: 'BIT Sindri Clubs Dashboard API',
       database: 'disconnected',
+      hint: hasDatabaseUrl
+        ? 'Connection failed - check DATABASE_URL / SSL / IP allowlist in Supabase.'
+        : 'DATABASE_URL is not set in this environment (Vercel -> Settings -> Environment Variables).',
       message: err.message
     });
   }
