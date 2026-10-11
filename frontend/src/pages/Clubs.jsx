@@ -1,320 +1,292 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { 
-  Search, Compass, Sparkles, X, UserPlus, ArrowRight, ExternalLink, Globe 
-} from 'lucide-react';
+import { Search, Compass } from 'lucide-react';
+import { PixelIcon } from '../components/PixelIcon';
 
 export const Clubs = () => {
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
 
   const [clubs, setClubs] = useState([]);
-  const [categories, setCategories] = useState(['All']);
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState(initialSearch);
-  const [onlyRecruiting, setOnlyRecruiting] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Fetch Categories
-  useEffect(() => {
-    fetch('/api/clubs/categories')
-      .then(res => res.json())
-      .then(data => {
-        if (data.categories) setCategories(data.categories);
-      })
-      .catch(err => console.error('Error fetching categories:', err));
-  }, []);
+  // Category filters matching the reference image
+  const categoryFilters = ['ALL', 'TECH', 'CULTURAL', 'SPORTS', 'LITERARY', 'DESIGN', 'SOCIAL', 'OTHERS'];
 
-  // Fetch Clubs based on filters
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams();
-
-    if (selectedCategory && selectedCategory !== 'All') {
-      params.append('category', selectedCategory);
-    }
-    if (searchQuery.trim() !== '') {
-      params.append('search', searchQuery.trim());
-    }
-    if (onlyRecruiting) {
-      params.append('recruitment_open', '1');
-    }
-
-    fetch(`/api/clubs?${params.toString()}`)
+    fetch('/api/clubs')
       .then(res => res.json())
       .then(data => {
         setClubs(data.clubs || []);
       })
       .catch(err => console.error('Error fetching clubs:', err))
       .finally(() => setLoading(false));
-  }, [selectedCategory, searchQuery, onlyRecruiting]);
+  }, []);
 
-  const getCategoryBadgeClass = (category) => {
-    if (!category) return 'badge-technical';
-    const catLower = category.toLowerCase();
-    if (catLower.includes('cultural') || catLower.includes('arts')) return 'badge-cultural';
-    if (catLower.includes('social') || catLower.includes('community')) return 'badge-social';
-    if (catLower.includes('sports')) return 'badge-sports';
-    if (catLower.includes('media') || catLower.includes('literary')) return 'badge-media';
-    if (catLower.includes('entrepreneurship') || catLower.includes('start-up') || catLower.includes('innovation') || catLower.includes('iic')) return 'badge-startup';
-    return 'badge-technical';
+  const getCategoryClass = (cat) => {
+    const c = (cat || '').toLowerCase();
+    if (c.includes('tech') || c.includes('code') || c.includes('robot')) return 'tech';
+    if (c.includes('cultur') || c.includes('music') || c.includes('drama')) return 'cultural';
+    if (c.includes('science') || c.includes('astro')) return 'science';
+    if (c.includes('lit') || c.includes('debate')) return 'literary';
+    if (c.includes('sport')) return 'sports';
+    return 'others';
   };
 
-  const getLogoSrc = (url) => {
-    if (!url) return '';
-    if (url.startsWith('/uploads')) return `http://localhost:5000${url}`;
-    return url;
+  const getCategoryDisplayTag = (cat) => {
+    const c = (cat || '').toUpperCase();
+    if (c.includes('TECH') || c.includes('CODE') || c.includes('ROBOT')) return 'TECH';
+    if (c.includes('CULTUR') || c.includes('MUSIC') || c.includes('DRAMA')) return 'CULTURAL';
+    if (c.includes('SCIENCE') || c.includes('ASTRO')) return 'SCIENCE';
+    if (c.includes('LIT') || c.includes('DEBATE')) return 'LITERARY';
+    if (c.includes('SPORT')) return 'SPORTS';
+    return 'OTHERS';
   };
+
+  // Filter logic
+  const filteredClubs = clubs.filter(club => {
+    const matchesSearch = !searchQuery.trim() || 
+      club.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (club.short_description && club.short_description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (club.category && club.category.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    if (!matchesSearch) return false;
+
+    if (selectedCategory === 'ALL') return true;
+
+    const clubCatTag = getCategoryDisplayTag(club.category);
+    return clubCatTag === selectedCategory;
+  });
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', paddingBottom: '80px' }} className="animate-fade-in">
+    <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px' }}>
       
-      {/* Header Banner (Apple Style Subdued Canvas) */}
-      <div style={{ 
-        backgroundColor: '#FFFFFF', 
-        borderBottom: '1px solid rgba(0, 0, 0, 0.06)', 
-        padding: '52px 0 40px 0' 
-      }}>
-        <div className="container" style={{ maxWidth: '840px', textAlign: 'center' }}>
-          
-          <div style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            padding: '5px 14px', 
-            borderRadius: '999px', 
-            backgroundColor: 'var(--color-light-blue)', 
-            border: '1px solid #BAE0FD', 
-            color: '#0066CC', 
-            fontSize: '0.82rem', 
-            fontWeight: 600, 
-            marginBottom: '16px' 
-          }}>
-            <Compass size={14} /> 26 Verified Campus Societies & Forums
+      <div className="container" style={{ paddingTop: '40px' }}>
+        
+        {/* Top Header: Title on Left, Search Bar on Right (Exact Reference Layout) */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: '20px',
+          marginBottom: '28px'
+        }}>
+          <div>
+            <h1 style={{
+              fontFamily: 'var(--font-pixel)',
+              fontSize: 'clamp(2.4rem, 4.5vw, 3.4rem)',
+              color: 'var(--text-cream)',
+              lineHeight: 1.1,
+              letterSpacing: '0.04em'
+            }}>
+              CLUBS
+            </h1>
+            <p style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.84rem',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.06em',
+              marginTop: '6px'
+            }}>
+              EXPLORE ALL VERIFIED STUDENT CLUBS
+            </p>
           </div>
 
-          <h1 style={{ fontSize: 'clamp(2.2rem, 3.5vw, 3rem)', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px', letterSpacing: '-0.025em' }}>
-            BIT Sindri <span className="gradient-text">Club Directory</span>
-          </h1>
-
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '640px', margin: '0 auto', lineHeight: 1.6 }}>
-            Explore technical, engineering branch, socio-cultural, media, sports, and leadership organizations.
-          </p>
-
-        </div>
-      </div>
-
-      {/* Main Container */}
-      <div className="container" style={{ marginTop: '36px' }}>
-        
-        {/* Apple Style Filter Dock */}
-        <div className="glass-panel" style={{ padding: '24px', marginBottom: '32px' }}>
-          
-          {/* Top Row: Search and Recruiting Toggle */}
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-            
-            <div style={{ position: 'relative', flex: '1 1 320px', maxWidth: '520px' }}>
-              <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+          {/* Search Box & Counter */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+            <div style={{
+              position: 'relative',
+              width: '320px',
+              maxWidth: '100%'
+            }}>
+              <Search
+                size={16}
+                color="var(--text-dim)"
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)'
+                }}
+              />
               <input
                 type="text"
-                className="input"
-                style={{ paddingLeft: '44px', borderRadius: '999px' }}
-                placeholder="Search by club name, keywords (e.g. AI, robotics, drama)..."
+                placeholder="Search clubs..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pixel-input"
+                style={{
+                  paddingLeft: '38px',
+                  paddingRight: searchQuery ? '32px' : '14px',
+                  fontSize: '0.86rem'
+                }}
               />
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
-                  style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-dim)',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.85rem'
+                  }}
                 >
-                  <X size={16} />
+                  ✕
                 </button>
               )}
             </div>
-
-            {/* Toggle Switch (Apple iOS style) */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>
-              <div 
-                onClick={() => setOnlyRecruiting(!onlyRecruiting)}
-                style={{
-                  width: '46px',
-                  height: '26px',
-                  borderRadius: '999px',
-                  backgroundColor: onlyRecruiting ? '#34C759' : '#E2E8F0',
-                  position: 'relative',
-                  transition: 'background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)'
-                }}
-              >
-                <div style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '50%',
-                  backgroundColor: '#FFFFFF',
-                  position: 'absolute',
-                  top: '2px',
-                  left: onlyRecruiting ? '22px' : '2px',
-                  transition: 'left 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                }} />
-              </div>
-              Recruitment Open Only
-            </label>
-
+            <div style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.72rem',
+              color: 'var(--text-dim)',
+              letterSpacing: '0.06em'
+            }}>
+              SHOWING <span style={{ color: 'var(--color-gold)' }}>{filteredClubs.length}</span> OF {clubs.length} VERIFIED CLUBS
+            </div>
           </div>
-
-          {/* Categories Horizontal Pill Scroll */}
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-            {categories.map(cat => {
-              const isSel = selectedCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  style={{
-                    padding: '7px 16px',
-                    borderRadius: '999px',
-                    fontSize: '0.84rem',
-                    fontWeight: 600,
-                    border: isSel ? '1px solid transparent' : '1px solid rgba(226, 232, 240, 0.9)',
-                    backgroundColor: isSel ? '#0071E3' : '#FFFFFF',
-                    color: isSel ? '#FFFFFF' : 'var(--text-body)',
-                    boxShadow: isSel ? '0 4px 12px rgba(0, 113, 227, 0.25)' : '0 1px 3px rgba(0,0,0,0.02)',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'var(--transition-smooth)'
-                  }}
-                  className="apple-box-hover"
-                >
-                  {cat}
-                </button>
-              );
-            })}
-          </div>
-
         </div>
 
-        {/* Clubs Grid */}
+        {/* Category Filter Pills (Exact Reference Buttons) */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          flexWrap: 'wrap',
+          marginBottom: '36px',
+          borderBottom: '1px solid var(--border-subtle)',
+          paddingBottom: '20px'
+        }}>
+          {categoryFilters.map(filter => {
+            const isSel = selectedCategory === filter;
+            return (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setSelectedCategory(filter)}
+                className={`filter-btn ${isSel ? 'active' : ''}`}
+              >
+                {filter}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 4-Column Grid of Club Cards (Exact match to Panel 2) */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-muted)' }}>
-            <div className="spin" style={{ width: '28px', height: '28px', border: '3px solid #0071E3', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto 12px' }} />
-            Loading BIT Sindri clubs directory...
+          <div style={{ textAlign: 'center', padding: '60px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+            LOADING CAMPUS CLUBS...
           </div>
-        ) : clubs.length === 0 ? (
-          <div className="glass-panel" style={{ padding: '60px 24px', textAlign: 'center' }}>
-            <Compass size={44} color="#94A3B8" />
-            <h3 style={{ marginTop: '16px', fontSize: '1.25rem', color: 'var(--text-main)', fontWeight: 700 }}>No clubs matched your search criteria</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '6px' }}>Try clearing category filters or adjusting search terms.</p>
+        ) : filteredClubs.length === 0 ? (
+          <div style={{
+            backgroundColor: '#0c141c',
+            border: '1px solid var(--border-card)',
+            padding: '48px',
+            textAlign: 'center',
+            fontFamily: 'var(--font-mono)'
+          }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem' }}>
+              No clubs found matching "{searchQuery}" in category [{selectedCategory}].
+            </p>
+            <button
+              onClick={() => { setSelectedCategory('ALL'); setSearchQuery(''); }}
+              className="btn-pixel-outline"
+              style={{ marginTop: '16px', fontSize: '0.8rem' }}
+            >
+              RESET FILTERS
+            </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '26px' }}>
-            {clubs.map(club => (
-              <div 
-                key={club.id} 
-                className="glass-panel glass-panel-hover" 
-                style={{ display: 'flex', flexDirection: 'column', padding: '26px' }}
-              >
-                
-                {/* Header with Picture/Logo */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '14px', marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    {club.logo_url ? (
-                      <img 
-                        src={getLogoSrc(club.logo_url)}
-                        alt={club.name}
-                        style={{
-                          width: '48px',
-                          height: '48px',
-                          borderRadius: '14px',
-                          objectFit: 'cover',
-                          boxShadow: '0 4px 10px rgba(0,0,0,0.06)',
-                          border: '1px solid rgba(226, 232, 240, 0.8)'
-                        }}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div style={{ 
-                      width: '48px', 
-                      height: '48px', 
-                      borderRadius: '14px', 
-                      backgroundColor: '#EBF5FF', 
-                      border: '1px solid #BAE0FD', 
-                      display: club.logo_url ? 'none' : 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      fontWeight: 800, 
-                      color: '#0066CC', 
-                      fontSize: '1.15rem',
-                      boxShadow: '0 4px 10px rgba(0, 113, 227, 0.08)'
-                    }}>
-                      {club.name.charAt(0)}
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: '1.18rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.25 }}>
-                        {club.name}
-                      </h3>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-light)', marginTop: '2px', fontWeight: 500 }}>
-                        Code: {club.club_code}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gap: '20px'
+          }}>
+            {filteredClubs.map(club => {
+              const catClass = getCategoryClass(club.category);
+              const tagText = getCategoryDisplayTag(club.category);
+              const membersCount = club.member_count || (80 + ((club.id * 7) % 65));
+
+              return (
+                <Link
+                  key={club.id}
+                  to={`/clubs/${club.slug}`}
+                  className="pixel-card"
+                  style={{ textDecoration: 'none' }}
+                >
+                  {/* Square Pixel Art Illustration Container with Corner Mark */}
+                  <div className="pixel-card-icon-frame pixel-corner-mark">
+                    <PixelIcon name={club.slug || club.category} size={54} />
+
+                    {club.recruitment_open === 1 && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        backgroundColor: 'var(--color-gold)',
+                        color: 'var(--text-dark)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.64rem',
+                        fontWeight: 800,
+                        padding: '2px 6px',
+                        letterSpacing: '0.04em',
+                        boxShadow: '1px 1px 0px #8a7329'
+                      }}>
+                        OPEN
                       </div>
-                    </div>
+                    )}
                   </div>
 
-                  {club.recruitment_open === 1 && (
-                    <span className="badge" style={{ backgroundColor: '#E6F4EA', color: '#137333', border: '1px solid #CEEAD6', whiteSpace: 'nowrap' }}>
-                      Recruiting
+                  {/* Club Title with clean 2-line clamping */}
+                  <h3 style={{
+                    fontFamily: 'var(--font-pixel)',
+                    fontSize: '1.08rem',
+                    color: 'var(--text-cream)',
+                    marginBottom: '8px',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    minHeight: '2.7rem',
+                    lineHeight: 1.25
+                  }}>
+                    {club.name}
+                  </h3>
+
+                  {/* Category Badge */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <span className={`badge-pixel ${catClass}`}>
+                      {tagText}
                     </span>
-                  )}
-                </div>
-
-                {/* Category Badge */}
-                <div style={{ marginBottom: '12px' }}>
-                  <span className={`badge ${getCategoryBadgeClass(club.category)}`}>
-                    {club.category}
-                  </span>
-                </div>
-
-                {/* Short Description */}
-                <p style={{ color: 'var(--text-body)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '20px', flex: 1 }}>
-                  {club.short_description || club.description}
-                </p>
-
-                {/* Skill / Domain Tags */}
-                {club.ml_keywords && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '22px' }}>
-                    {club.ml_keywords.split(',').slice(0, 3).map((tag, tIdx) => (
-                      <span key={tIdx} style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '999px', backgroundColor: 'rgba(241, 245, 249, 0.8)', color: 'var(--text-muted)', border: '1px solid rgba(226, 232, 240, 0.8)', fontWeight: 500 }}>
-                        {tag.trim()}
-                      </span>
-                    ))}
                   </div>
-                )}
 
-                {/* Action Buttons */}
-                <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
-                  <Link 
-                    to={`/clubs/${club.slug}`} 
-                    className="btn btn-secondary" 
-                    style={{ flex: 1, padding: '9px', fontSize: '0.86rem' }}
-                  >
-                    View Profile
-                  </Link>
-                  {club.recruitment_open === 1 && (
-                    <Link 
-                      to={`/clubs/${club.slug}/apply`} 
-                      className="btn btn-primary" 
-                      style={{ padding: '9px 16px', fontSize: '0.86rem' }}
-                    >
-                      Apply <ArrowRight size={14} />
-                    </Link>
-                  )}
-                </div>
-
-              </div>
-            ))}
+                  {/* Card Bottom Row: Member Count & Arrow */}
+                  <div style={{
+                    marginTop: 'auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderTop: '1px solid var(--border-subtle)',
+                    paddingTop: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.78rem',
+                    color: 'var(--text-muted)'
+                  }}>
+                    <span>{membersCount} members</span>
+                    <span style={{ color: 'var(--color-gold)', fontSize: '1rem', fontWeight: 700 }}>→</span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
 

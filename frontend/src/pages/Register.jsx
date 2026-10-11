@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, User, Mail, Key, AlertCircle, Compass } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { PixelIcon } from '../components/PixelIcon';
 
 export const Register = () => {
   const [name, setName] = useState('');
@@ -29,30 +30,37 @@ export const Register = () => {
   };
 
   return (
-    <div style={{ backgroundColor: '#F8FAFC', minHeight: '85vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
+    <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '85vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
       <div style={{ maxWidth: '440px', width: '100%' }}>
         
-        <div className="card-panel" style={{ padding: '36px' }}>
+        <div style={{
+          backgroundColor: '#0c141c',
+          border: '1px solid var(--border-gold)',
+          padding: '36px',
+          boxShadow: '0 0 20px rgba(194, 166, 73, 0.12)'
+        }}>
           
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: '#0F172A', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', marginBottom: '12px' }}>
-              <Compass size={22} />
+            <div style={{ width: '44px', height: '44px', border: '1px solid var(--border-gold)', backgroundColor: '#070c10', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+              <PixelIcon name="building" size={28} />
             </div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A' }}>Student Registration</h2>
-            <p style={{ color: '#64748B', fontSize: '0.88rem', marginTop: '4px' }}>
-              Create your account to submit induction forms & track events
+            <h2 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.6rem', color: 'var(--text-cream)' }}>
+              STUDENT SIGN UP
+            </h2>
+            <p style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>
+              JOIN THE BIT SINDRI CLUBS ECOSYSTEM
             </p>
           </div>
 
           {error && (
             <div style={{ 
               padding: '12px 14px', 
-              backgroundColor: '#FEF2F2', 
-              border: '1px solid #FECACA', 
-              color: '#991B1B', 
-              borderRadius: '6px', 
+              backgroundColor: 'rgba(240, 113, 103, 0.15)', 
+              border: '1px solid var(--color-coral)', 
+              color: 'var(--color-coral)', 
               marginBottom: '20px', 
-              fontSize: '0.88rem',
+              fontSize: '0.82rem',
+              fontFamily: 'var(--font-mono)',
               display: 'flex',
               alignItems: 'center',
               gap: '8px'
@@ -62,12 +70,14 @@ export const Register = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Full Name</label>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-cream)', display: 'block', marginBottom: '6px' }}>
+                FULL NAME
+              </label>
               <input
                 type="text"
-                className="input"
+                className="pixel-input"
                 placeholder="Rahul Kumar"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -75,11 +85,13 @@ export const Register = () => {
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Institute Email Address</label>
+            <div>
+              <label style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-cream)', display: 'block', marginBottom: '6px' }}>
+                INSTITUTE EMAIL
+              </label>
               <input
                 type="email"
-                className="input"
+                className="pixel-input"
                 placeholder="student@bitsindri.ac.in"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -87,11 +99,13 @@ export const Register = () => {
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Password</label>
+            <div>
+              <label style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-cream)', display: 'block', marginBottom: '6px' }}>
+                PASSWORD
+              </label>
               <input
                 type="password"
-                className="input"
+                className="pixel-input"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -99,20 +113,20 @@ export const Register = () => {
               />
             </div>
 
-            <button 
-              type="submit" 
-              disabled={loading} 
-              className="btn btn-primary" 
-              style={{ width: '100%', padding: '11px', marginTop: '12px', fontSize: '0.95rem' }}
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-pixel-gold"
+              style={{ width: '100%', marginTop: '12px', padding: '12px' }}
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT →'}
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.88rem', color: '#64748B' }}>
-            Already have an account?{' '}
-            <Link to="/login" style={{ color: '#2563EB', fontWeight: 600 }}>
-              Sign In
+          <div style={{ marginTop: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            ALREADY HAVE AN ACCOUNT?{' '}
+            <Link to="/login" style={{ color: 'var(--color-gold)', textDecoration: 'none', fontWeight: 700 }}>
+              SIGN IN HERE
             </Link>
           </div>
 
