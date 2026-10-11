@@ -1,6 +1,6 @@
 import express from 'express';
 import { getDb } from '../db/db.js';
-import { authenticateToken, requireRole, enforceClubIsolation } from '../middleware/auth.js';
+import { authenticateToken, requireRole, enforceClubIsolation, resolveClubId } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -219,8 +219,8 @@ router.get('/my-applications', authenticateToken, async (req, res) => {
 });
 
 // GET /api/induction/admin/form - Get form builder questions & options for Club Admin
-router.get('/admin/form', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
-  const clubId = req.user.role === 'super_admin' && req.query.club_id ? parseInt(req.query.club_id) : req.user.club_id;
+router.get('/admin/form', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  const clubId = resolveClubId(req);
 
   try {
     const db = await getDb();
@@ -245,9 +245,9 @@ router.get('/admin/form', authenticateToken, requireRole('club_admin', 'super_ad
 });
 
 // POST /api/induction/admin/question - Add question to form (Club Admin / Super Admin)
-router.post('/admin/question', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.post('/admin/question', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { question, question_type, required, options } = req.body;
-  const clubId = req.user.role === 'super_admin' && req.body.club_id ? parseInt(req.body.club_id) : req.user.club_id;
+  const clubId = resolveClubId(req);
 
   if (!question || !question_type) {
     return res.status(400).json({ error: 'Question text and type are required' });
@@ -295,7 +295,7 @@ router.post('/admin/question', authenticateToken, requireRole('club_admin', 'sup
 });
 
 // DELETE /api/induction/admin/question/:id - Delete question
-router.delete('/admin/question/:id', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.delete('/admin/question/:id', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { id } = req.params;
 
   try {

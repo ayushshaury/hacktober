@@ -1,12 +1,12 @@
 import fs from 'fs';
 import path from 'path';
-import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import { getDb } from './db.js';
 import { seedClubs } from './seed_clubs.js';
 import { seedEvents } from './seed_events.js';
 import { seedInductionForms } from './seed_induction.js';
+import { seedAdmins } from './seed_admins.js';
 
 dotenv.config();
 
@@ -61,58 +61,12 @@ async function initDb() {
   await db.exec(schemaSql);
   console.log('PostgreSQL database tables created successfully.');
 
-  // Seed initial system users if empty
-  const userCount = await db.get('SELECT COUNT(*) as count FROM users');
-  const count = Number(userCount?.count || 0);
-
-  if (count === 0) {
-    console.log('Seeding initial demo users...');
-    const hashedPassword = await bcrypt.hash('password123', 10);
-
-    // 1. Super Admin
-    await db.run(
-      `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)`,
-      ['Super Admin', 'admin@bitsindri.ac.in', hashedPassword, 'super_admin']
-    );
-
-    // 2. Demo Students
-    await db.run(
-      `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)`,
-      ['Ayush Shaurya (Student)', 'student@bitsindri.ac.in', hashedPassword, 'student']
-    );
-
-    await db.run(
-      `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)`,
-      ['Priya Sharma (Student)', 'priya.sharma@bitsindri.ac.in', hashedPassword, 'student']
-    );
-
-    await db.run(
-      `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)`,
-      ['Rohan Verma (Student)', 'rohan.verma@bitsindri.ac.in', hashedPassword, 'student']
-    );
-
-    await db.run(
-      `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)`,
-      ['Ananya Gupta (Student)', 'ananya.gupta@bitsindri.ac.in', hashedPassword, 'student']
-    );
-
-    // 3. Demo Club Admin (HnCC Admin)
-    await db.run(
-      `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)`,
-      ['HnCC Admin', 'hncc.admin@bitsindri.ac.in', hashedPassword, 'club_admin']
-    );
-
-    console.log('Demo users seeded:');
-    console.log(' - Super Admin: admin@bitsindri.ac.in / password123');
-    console.log(' - Student 1: student@bitsindri.ac.in / password123');
-    console.log(' - Student 2: priya.sharma@bitsindri.ac.in / password123');
-    console.log(' - Student 3: rohan.verma@bitsindri.ac.in / password123');
-    console.log(' - Student 4: ananya.gupta@bitsindri.ac.in / password123');
-    console.log(' - Club Admin: hncc.admin@bitsindri.ac.in / password123');
-  }
-
   // Seed Verified Clubs
   await seedClubs();
+
+  // Seed club admin logins (the only role that can log in)
+  console.log('Seeding club admin accounts...');
+  await seedAdmins();
 
   // Seed Initial Events
   await seedEvents();

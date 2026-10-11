@@ -27,23 +27,21 @@ export async function authenticateToken(req, res, next) {
       return res.status(401).json({ error: 'User account not found or deactivated.' });
     }
 
-    // Resolve assigned club for Club Admins
-    if (user.role === 'club_admin') {
-      const adminRecord = await db.get(
-        `SELECT ca.club_id, c.name as club_name, c.slug as club_slug 
-         FROM club_admins ca 
-         LEFT JOIN clubs c ON ca.club_id = c.id 
-         WHERE ca.user_id = ?`,
-        [user.id]
-      );
-      user.club_id = adminRecord ? adminRecord.club_id : null;
-      user.club_name = adminRecord ? adminRecord.club_name : null;
-      user.club_slug = adminRecord ? adminRecord.club_slug : null;
-    } else {
-      user.club_id = null;
-      user.club_name = null;
-      user.club_slug = null;
-    }
+    // Resolve ALL assigned clubs for this admin
+    const clubs = await db.all(
+      `SELECT ca.club_id, c.name as club_name, c.slug as club_slug
+       FROM club_admins ca
+       LEFT JOIN clubs c ON ca.club_id = c.id
+       WHERE ca.user_id = ?
+       ORDER BY ca.id ASC`,
+      [user.id]
+    );
+
+    user.clubs = clubs;
+    user.club_ids = clubs.map((c) => c.club_id);
+    user.club_id = clubs[0] ? clubs[0].club_id : null;
+    user.club_name = clubs[0] ? clubs[0].club_name : null;
+    user.club_slug = clubs[0] ? clubs[0].club_slug : null;
 
     req.user = user;
     next();
@@ -53,51 +51,52 @@ export async function authenticateToken(req, res, next) {
   }
 }
 
-// Strict Role Check Middleware
+// Strict Role Check Middleware (only 'club_admin' exists now)
 export function requireRole(...allowedRoles) {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        error: `Forbidden: Access restricted to ${allowedRoles.join(', ')} roles.` 
-      });
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions.' });
     }
     next();
   };
 }
 
-// Mandatory Server-Side Club Data Isolation Guard (Section 12 of Spec)
+// Resolve which club the admin is acting on (must be one of their assigned clubs)
+export function resolveClubId(req) {
+  const allowed = req.user?.club_ids || [];
+  if (!allowed.length) return null;
+
+  const raw = req.query?.club_id ?? req.body?.club_id;
+  const id = raw !== undefined && raw !== null && raw !== '' ? parseInt(raw) : null;
+
+  if (!id) return allowed[0];
+  return allowed.includes(id) ? id : null;
+}
+
+// Mandatory Server-Side Club Data Isolation Guard
 export function enforceClubIsolation(paramName = 'clubId') {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Super Admin has global platform access
-    if (req.user.role === 'super_admin') {
-      return next();
+    const allowed = req.user.club_ids || [];
+    if (!allowed.length) {
+      return res.status(403).json({ error: 'Forbidden: No club assigned to your admin account.' });
     }
 
-    // Club Admin can ONLY access their assigned club
-    if (req.user.role === 'club_admin') {
-      const rawParam = req.params[paramName] || req.body[paramName] || req.query[paramName];
-      const targetClubId = parseInt(rawParam);
+    const rawParam = req.params[paramName] || req.body[paramName] || req.query[paramName];
+    const targetClubId = parseInt(rawParam);
 
-      if (!req.user.club_id) {
-        return res.status(403).json({ error: 'Forbidden: No club assigned to your admin account.' });
-      }
-
-      if (targetClubId && req.user.club_id !== targetClubId) {
-        return res.status(403).json({ 
-          error: 'Forbidden: Security Violation. You can only view and manage data for your assigned club.' 
-        });
-      }
-
-      return next();
+    if (targetClubId && !allowed.includes(targetClubId)) {
+      return res.status(403).json({
+        error: 'Forbidden: Security Violation. You can only view and manage data for your assigned clubs.'
+      });
     }
 
-    return res.status(403).json({ error: 'Forbidden: Insufficient permissions.' });
+    return next();
   };
 }

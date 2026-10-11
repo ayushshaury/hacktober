@@ -18,6 +18,16 @@ export const AdminDashboard = () => {
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
 
+  // Multi-club admin: active club switcher
+  const [myClubs, setMyClubs] = useState([]);
+  const [activeClubId, setActiveClubId] = useState(null);
+
+  const withClub = (url) => {
+    if (!activeClubId) return url;
+    return `${url}${url.includes('?') ? '&' : '?'}club_id=${activeClubId}`;
+  };
+  const apiFetch = (url, options = {}) => fetch(withClub(url), options);
+
   // Members tab state
   const [members, setMembers] = useState([]);
   const [membersLoading, setMembersLoading] = useState(false);
@@ -42,6 +52,9 @@ export const AdminDashboard = () => {
 
   // Applicants tab state
   const [applicants, setApplicants] = useState([]);
+  const [admins, setAdmins] = useState([]);
+  const [adminForm, setAdminForm] = useState({ name: '', email: '', password: '' });
+  const [adminMsg, setAdminMsg] = useState('');
   const [applicantSearch, setApplicantSearch] = useState('');
   const [applicantStatusFilter, setApplicantStatusFilter] = useState('All');
   const [selectedApplicant, setSelectedApplicant] = useState(null);
@@ -81,7 +94,7 @@ export const AdminDashboard = () => {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/my-club', {
+      const res = await apiFetch('/api/admin/my-club', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const resData = await res.json();
@@ -96,7 +109,7 @@ export const AdminDashboard = () => {
       setLogoUrl(resData.club.logo_url || '');
 
       // Fetch Form Builder questions
-      const formRes = await fetch('/api/induction/admin/form', {
+      const formRes = await apiFetch('/api/induction/admin/form', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const formData = await formRes.json();
@@ -115,7 +128,7 @@ export const AdminDashboard = () => {
       if (applicantStatusFilter !== 'All') params.append('status', applicantStatusFilter);
       if (applicantSearch.trim()) params.append('search', applicantSearch.trim());
 
-      const res = await fetch(`/api/admin/applicants?${params.toString()}`, {
+      const res = await apiFetch(`/api/admin/applicants?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const resData = await res.json();
@@ -132,7 +145,7 @@ export const AdminDashboard = () => {
       if (memberStatusFilter !== 'All') params.append('status', memberStatusFilter);
       if (memberSearch.trim()) params.append('search', memberSearch.trim());
 
-      const res = await fetch(`/api/admin/members?${params.toString()}`, {
+      const res = await apiFetch(`/api/admin/members?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const resData = await res.json();
@@ -145,23 +158,90 @@ export const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    if (token) {
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await apiFetch('/api/admin/my-clubs');
+        const resData = await res.json();
+        const clubs = resData.clubs || [];
+        setMyClubs(clubs);
+        if (clubs.length && !activeClubId) setActiveClubId(clubs[0].id);
+      } catch (err) {
+        console.error('Error loading assigned clubs:', err);
+      }
+    })();
+  }, [token]);
+
+  useEffect(() => {
+    if (token && activeClubId) {
       fetchAdminData();
       fetchMembers();
+      fetchAdmins();
+      if (activeTab === 'applicants') fetchApplicants();
     }
-  }, [token]);
+  }, [token, activeClubId]);
 
   useEffect(() => {
     if (token && activeTab === 'applicants') {
       fetchApplicants();
     }
-  }, [token, activeTab, applicantStatusFilter, applicantSearch]);
+  }, [token, activeClubId, activeTab, applicantStatusFilter, applicantSearch]);
 
   useEffect(() => {
     if (token && activeTab === 'members') {
       fetchMembers();
     }
-  }, [token, activeTab, memberStatusFilter, memberSearch]);
+  }, [token, activeClubId, activeTab, memberStatusFilter, memberSearch]);
+
+  const fetchAdmins = async () => {
+    try {
+      const res = await apiFetch('/api/admin/admins');
+      const resData = await res.json();
+      if (res.ok) setAdmins(resData.admins || []);
+    } catch (err) {
+      console.error('Error loading admins:', err);
+    }
+  };
+
+  const handleAddAdmin = async (e) => {
+    e.preventDefault();
+    setAdminMsg('');
+    try {
+      const res = await apiFetch('/api/admin/admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name: adminForm.name,
+          email: adminForm.email,
+          password: adminForm.password,
+          club_id: activeClubId
+        })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to add admin');
+      setAdminMsg(resData.message);
+      setAdminForm({ name: '', email: '', password: '' });
+      fetchAdmins();
+    } catch (err) {
+      setAdminMsg(err.message);
+    }
+  };
+
+  const handleRemoveAdmin = async (userId) => {
+    if (!window.confirm('Remove this admin access?')) return;
+    try {
+      const res = await apiFetch(`/api/admin/admins/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ club_id: activeClubId })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to remove admin');
+      fetchAdmins();
+    } catch (err) {
+      setAdminMsg(err.message);
+    }
+  };
 
   const handleOpenAddMember = () => {
     setEditingMember(null);
@@ -212,7 +292,7 @@ export const AdminDashboard = () => {
         : '/api/admin/members';
       const method = editingMember ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -239,7 +319,7 @@ export const AdminDashboard = () => {
   const handleDeleteMember = async (memberId, memberName) => {
     if (!window.confirm(`Are you sure you want to remove ${memberName} from the club members roster?`)) return;
     try {
-      const res = await fetch(`/api/admin/members/${memberId}`, {
+      const res = await apiFetch(`/api/admin/members/${memberId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -260,7 +340,7 @@ export const AdminDashboard = () => {
     e.preventDefault();
     setMsg('');
     try {
-      const res = await fetch('/api/admin/my-club', {
+      const res = await apiFetch('/api/admin/my-club', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -291,7 +371,7 @@ export const AdminDashboard = () => {
     setMsg('');
     setError('');
     try {
-      const res = await fetch('/api/admin/induction/toggle-status', {
+      const res = await apiFetch('/api/admin/induction/toggle-status', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -320,7 +400,7 @@ export const AdminDashboard = () => {
 
     try {
       const optionsList = newOptionsStr.split(',').map(s => s.trim()).filter(Boolean);
-      const res = await fetch('/api/induction/admin/questions', {
+      const res = await apiFetch('/api/induction/admin/questions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -345,7 +425,7 @@ export const AdminDashboard = () => {
 
   const handleDeleteQuestion = async (qId) => {
     try {
-      const res = await fetch(`/api/induction/admin/questions/${qId}`, {
+      const res = await apiFetch(`/api/induction/admin/questions/${qId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -357,7 +437,7 @@ export const AdminDashboard = () => {
 
   const handleStatusChange = async (appId, newStatus) => {
     try {
-      const res = await fetch(`/api/admin/applicants/${appId}/status`, {
+      const res = await apiFetch(`/api/admin/applicants/${appId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -379,7 +459,7 @@ export const AdminDashboard = () => {
   const handleAddSocialLink = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/social-links', {
+      const res = await apiFetch('/api/admin/social-links', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -398,7 +478,7 @@ export const AdminDashboard = () => {
 
   const handleDeleteSocialLink = async (id) => {
     try {
-      const res = await fetch(`/api/admin/social-links/${id}`, {
+      const res = await apiFetch(`/api/admin/social-links/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -411,7 +491,7 @@ export const AdminDashboard = () => {
   const handleCreateAnnouncement = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/announcements', {
+      const res = await apiFetch('/api/admin/announcements', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -432,7 +512,7 @@ export const AdminDashboard = () => {
 
   const handleDeleteAnnouncement = async (id) => {
     try {
-      const res = await fetch(`/api/admin/announcements/${id}`, {
+      const res = await apiFetch(`/api/admin/announcements/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -445,7 +525,7 @@ export const AdminDashboard = () => {
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/events', {
+      const res = await apiFetch('/api/events', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -572,6 +652,18 @@ export const AdminDashboard = () => {
                 <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '6px', letterSpacing: '-0.025em' }}>
                   {data.name}
                 </h1>
+                {myClubs.length > 1 && (
+                  <select
+                    className="input"
+                    value={activeClubId || ''}
+                    onChange={(e) => setActiveClubId(parseInt(e.target.value))}
+                    style={{ marginTop: '8px', maxWidth: '320px', fontWeight: 600 }}
+                  >
+                    {myClubs.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
@@ -656,6 +748,7 @@ export const AdminDashboard = () => {
             { id: 'overview', label: 'Overview', icon: LayoutDashboard },
             { id: 'members', label: `Members (${data.stats?.members ?? members.length ?? 0})`, icon: Users },
             { id: 'applicants', label: `Applicants (${data.stats?.applications || 0})`, icon: UserCheck },
+            { id: 'admins', label: `Admins (${admins.filter(a => a.club_id === activeClubId).length})`, icon: ShieldCheck },
             { id: 'profile', label: 'Club Profile & Picture', icon: Edit3 },
             { id: 'form-builder', label: 'Induction Form Builder', icon: FileSpreadsheet },
             { id: 'events', label: `Events (${data.events?.length || 0})`, icon: Calendar },
@@ -998,6 +1091,96 @@ export const AdminDashboard = () => {
         )}
 
         {/* TAB 3: APPLICANTS REVIEW TABLE */}
+        {activeTab === 'admins' && (
+          <div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+              Club Admins
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '4px', marginBottom: '24px' }}>
+              Admins have full access to the club they are assigned to. You can grant admin access to other members here.
+            </p>
+
+            <div className="glass-panel" style={{ padding: '22px', marginBottom: '24px', maxWidth: '560px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '14px' }}>
+                Grant Admin Access
+              </div>
+              <form onSubmit={handleAddAdmin} style={{ display: 'grid', gap: '12px' }}>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Full name (only for new admin)"
+                  value={adminForm.name}
+                  onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
+                />
+                <input
+                  type="email"
+                  className="input"
+                  placeholder="Email address"
+                  value={adminForm.email}
+                  onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
+                  required
+                />
+                <input
+                  type="password"
+                  className="input"
+                  placeholder="Password (only for new admin, min 6 chars)"
+                  value={adminForm.password}
+                  onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                />
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <button type="submit" className="btn btn-primary" style={{ padding: '10px 20px', fontSize: '0.88rem' }}>
+                    <UserPlus size={15} /> Add Admin
+                  </button>
+                  {adminMsg && <span style={{ fontSize: '0.84rem', color: '#0066CC' }}>{adminMsg}</span>}
+                </div>
+              </form>
+            </div>
+
+            <div className="glass-panel" style={{ overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Admin</th>
+                    <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Email</th>
+                    <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Club</th>
+                    <th style={{ padding: '14px 18px', textAlign: 'right', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {admins.filter(a => a.club_id === activeClubId).length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '22px 18px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                        No admins assigned to this club yet.
+                      </td>
+                    </tr>
+                  )}
+                  {admins.filter(a => a.club_id === activeClubId).map(a => (
+                    <tr key={`${a.id}-${a.club_id}`} style={{ borderTop: '1px solid rgba(226,232,240,0.7)' }}>
+                      <td style={{ padding: '14px 18px', fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-main)' }}>{a.name}</td>
+                      <td style={{ padding: '14px 18px', fontSize: '0.88rem', color: 'var(--text-muted)' }}>{a.email}</td>
+                      <td style={{ padding: '14px 18px', fontSize: '0.88rem', color: 'var(--text-muted)' }}>{a.club_name}</td>
+                      <td style={{ padding: '14px 18px', textAlign: 'right' }}>
+                        {a.id !== user.id ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAdmin(a.id)}
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                          >
+                            <Trash2 size={13} /> Remove
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.78rem', color: '#137333', fontWeight: 600 }}>You</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'applicants' && (
           <div>
             <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>

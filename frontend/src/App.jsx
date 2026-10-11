@@ -5,13 +5,11 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
-import { Register } from './pages/Register';
 import { Clubs } from './pages/Clubs';
 import { ClubDetail } from './pages/ClubDetail';
 import { Events } from './pages/Events';
 import { EventDetail } from './pages/EventDetail';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { SuperAdminDashboard } from './pages/SuperAdminDashboard';
 import { Recommendations } from './pages/Recommendations';
 import { ApplyInduction } from './pages/ApplyInduction';
 import { MyApplications } from './pages/MyApplications';
@@ -39,7 +37,6 @@ function AppRoutes() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           <Route path="/clubs" element={<Clubs />} />
           <Route path="/clubs/:slug" element={<ClubDetail />} />
           <Route path="/clubs/:slug/apply" element={<ApplyInduction />} />
@@ -49,7 +46,7 @@ function AppRoutes() {
           <Route 
             path="/my-applications" 
             element={
-              <ProtectedRoute allowedRoles={['student', 'club_admin', 'super_admin']}>
+              <ProtectedRoute allowedRoles={['club_admin']}>
                 <MyApplications />
               </ProtectedRoute>
             } 
@@ -57,7 +54,7 @@ function AppRoutes() {
           <Route 
             path="/profile" 
             element={
-              <ProtectedRoute allowedRoles={['student', 'club_admin', 'super_admin']}>
+              <ProtectedRoute allowedRoles={['club_admin']}>
                 <Profile />
               </ProtectedRoute>
             } 
@@ -65,16 +62,8 @@ function AppRoutes() {
           <Route 
             path="/admin/dashboard" 
             element={
-              <ProtectedRoute allowedRoles={['club_admin', 'super_admin']}>
+              <ProtectedRoute allowedRoles={['club_admin']}>
                 <AdminDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/super-admin" 
-            element={
-              <ProtectedRoute allowedRoles={['super_admin']}>
-                <SuperAdminDashboard />
               </ProtectedRoute>
             } 
           />

@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role VARCHAR(50) NOT NULL DEFAULT 'student', -- 'student', 'club_admin', 'super_admin'
+  role VARCHAR(50) NOT NULL DEFAULT 'club_admin', -- only role: 'club_admin'
   phone VARCHAR(50),
   avatar_url TEXT,
   department VARCHAR(255),

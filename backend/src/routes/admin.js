@@ -1,18 +1,15 @@
 import express from 'express';
 import { getDb } from '../db/db.js';
-import { authenticateToken, requireRole, enforceClubIsolation } from '../middleware/auth.js';
+import { authenticateToken, requireRole, enforceClubIsolation, resolveClubId } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // GET /api/admin/my-club - Fetch assigned club data, stats, social links, announcements, & events
-router.get('/my-club', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.get('/my-club', authenticateToken, requireRole('club_admin'), async (req, res) => {
   try {
     const db = await getDb();
 
-    let clubId = req.user.club_id;
-    if (req.user.role === 'super_admin' && req.query.club_id) {
-      clubId = parseInt(req.query.club_id);
-    }
+    const clubId = resolveClubId(req);
 
     if (!clubId) {
       return res.status(400).json({ error: 'No assigned club ID found for this admin account.' });
@@ -65,13 +62,10 @@ router.get('/my-club', authenticateToken, requireRole('club_admin', 'super_admin
 });
 
 // PUT /api/admin/my-club - Update permitted club profile fields & recruitment status
-router.put('/my-club', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.put('/my-club', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { short_description, description, website_url, recruitment_open, logo_url } = req.body;
 
-  let clubId = req.user.club_id;
-  if (req.user.role === 'super_admin' && req.body.club_id) {
-    clubId = parseInt(req.body.club_id);
-  }
+  const clubId = resolveClubId(req);
 
   if (!clubId) {
     return res.status(400).json({ error: 'No club ID specified' });
@@ -115,11 +109,8 @@ router.put('/my-club', authenticateToken, requireRole('club_admin', 'super_admin
 });
 
 // PUT /api/admin/induction/toggle-status - Direct 1-click toggle for club admin to open/close induction form
-router.put('/induction/toggle-status', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
-  let clubId = req.user.club_id;
-  if (req.user.role === 'super_admin' && req.body.club_id) {
-    clubId = parseInt(req.body.club_id);
-  }
+router.put('/induction/toggle-status', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  const clubId = resolveClubId(req);
 
   if (!clubId) {
     return res.status(400).json({ error: 'No club ID specified.' });
@@ -165,11 +156,8 @@ router.put('/induction/toggle-status', authenticateToken, requireRole('club_admi
 });
 
 // GET /api/admin/applicants - List applicants for assigned club only (Strict Security Isolation)
-router.get('/applicants', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
-  let clubId = req.user.club_id;
-  if (req.user.role === 'super_admin' && req.query.club_id) {
-    clubId = parseInt(req.query.club_id);
-  }
+router.get('/applicants', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  const clubId = resolveClubId(req);
 
   if (!clubId) {
     return res.status(400).json({ error: 'No assigned club specified.' });
@@ -226,7 +214,7 @@ router.get('/applicants', authenticateToken, requireRole('club_admin', 'super_ad
 });
 
 // PUT /api/admin/applicants/:id/status - Update application status (Strict Ownership Guard)
-router.put('/applicants/:id/status', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.put('/applicants/:id/status', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
@@ -244,7 +232,7 @@ router.put('/applicants/:id/status', authenticateToken, requireRole('club_admin'
     }
 
     // Enforce club admin isolation: Cannot touch another club's applicants!
-    if (req.user.role === 'club_admin' && app.club_id !== req.user.club_id) {
+    if (!req.user.club_ids.includes(app.club_id)) {
       return res.status(403).json({ error: 'Forbidden: Security Violation. You can only update status for your assigned club applicants.' });
     }
 
@@ -272,9 +260,9 @@ router.put('/applicants/:id/status', authenticateToken, requireRole('club_admin'
 });
 
 // POST /api/admin/social-links - Add official social link
-router.post('/social-links', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.post('/social-links', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { platform, url } = req.body;
-  const clubId = req.user.role === 'super_admin' && req.body.club_id ? parseInt(req.body.club_id) : req.user.club_id;
+  const clubId = resolveClubId(req);
 
   if (!platform || !url) {
     return res.status(400).json({ error: 'Platform and URL are required' });
@@ -298,7 +286,7 @@ router.post('/social-links', authenticateToken, requireRole('club_admin', 'super
 });
 
 // DELETE /api/admin/social-links/:id - Delete social link
-router.delete('/social-links/:id', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.delete('/social-links/:id', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { id } = req.params;
   const clubId = req.user.club_id;
 
@@ -310,7 +298,7 @@ router.delete('/social-links/:id', authenticateToken, requireRole('club_admin', 
       return res.status(404).json({ error: 'Link not found' });
     }
 
-    if (req.user.role === 'club_admin' && link.club_id !== clubId) {
+    if (!req.user.club_ids.includes(link.club_id)) {
       return res.status(403).json({ error: 'Forbidden: You can only remove links for your assigned club' });
     }
 
@@ -323,9 +311,9 @@ router.delete('/social-links/:id', authenticateToken, requireRole('club_admin', 
 });
 
 // POST /api/admin/announcements - Create announcement
-router.post('/announcements', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.post('/announcements', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { title, content, is_pinned } = req.body;
-  const clubId = req.user.role === 'super_admin' && req.body.club_id ? parseInt(req.body.club_id) : req.user.club_id;
+  const clubId = resolveClubId(req);
 
   if (!title || !content) {
     return res.status(400).json({ error: 'Title and content are required' });
@@ -349,7 +337,7 @@ router.post('/announcements', authenticateToken, requireRole('club_admin', 'supe
 });
 
 // DELETE /api/admin/announcements/:id - Delete announcement
-router.delete('/announcements/:id', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.delete('/announcements/:id', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { id } = req.params;
   const clubId = req.user.club_id;
 
@@ -361,7 +349,7 @@ router.delete('/announcements/:id', authenticateToken, requireRole('club_admin',
       return res.status(404).json({ error: 'Announcement not found' });
     }
 
-    if (req.user.role === 'club_admin' && ann.club_id !== clubId) {
+    if (!req.user.club_ids.includes(ann.club_id)) {
       return res.status(403).json({ error: 'Forbidden: You can only delete announcements for your assigned club' });
     }
 
@@ -378,11 +366,8 @@ router.delete('/announcements/:id', authenticateToken, requireRole('club_admin',
 // ==========================================
 
 // GET /api/admin/members - List all members of assigned club
-router.get('/members', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
-  let clubId = req.user.club_id;
-  if (req.user.role === 'super_admin' && req.query.club_id) {
-    clubId = parseInt(req.query.club_id);
-  }
+router.get('/members', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  const clubId = resolveClubId(req);
 
   if (!clubId) {
     return res.status(400).json({ error: 'No club ID specified' });
@@ -428,17 +413,14 @@ router.get('/members', authenticateToken, requireRole('club_admin', 'super_admin
 });
 
 // POST /api/admin/members - Add new member to assigned club
-router.post('/members', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.post('/members', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const {
     name, email, phone, position, department,
     batch_year, joined_date, avatar_url, status,
     bio, linkedin_url, github_url
   } = req.body;
 
-  let clubId = req.user.club_id;
-  if (req.user.role === 'super_admin' && req.body.club_id) {
-    clubId = parseInt(req.body.club_id);
-  }
+  const clubId = resolveClubId(req);
 
   if (!clubId) {
     return res.status(400).json({ error: 'No club ID specified' });
@@ -490,7 +472,7 @@ router.post('/members', authenticateToken, requireRole('club_admin', 'super_admi
 });
 
 // PUT /api/admin/members/:id - Update member details
-router.put('/members/:id', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.put('/members/:id', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { id } = req.params;
   const {
     name, email, phone, position, department,
@@ -498,10 +480,7 @@ router.put('/members/:id', authenticateToken, requireRole('club_admin', 'super_a
     bio, linkedin_url, github_url
   } = req.body;
 
-  let clubId = req.user.club_id;
-  if (req.user.role === 'super_admin' && req.body.club_id) {
-    clubId = parseInt(req.body.club_id);
-  }
+  const clubId = resolveClubId(req);
 
   try {
     const db = await getDb();
@@ -511,7 +490,7 @@ router.put('/members/:id', authenticateToken, requireRole('club_admin', 'super_a
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    if (req.user.role === 'club_admin' && existing.club_id !== clubId) {
+    if (!req.user.club_ids.includes(existing.club_id)) {
       return res.status(403).json({ error: 'Forbidden: You can only edit members of your assigned club' });
     }
 
@@ -550,7 +529,7 @@ router.put('/members/:id', authenticateToken, requireRole('club_admin', 'super_a
 });
 
 // DELETE /api/admin/members/:id - Delete member
-router.delete('/members/:id', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.delete('/members/:id', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { id } = req.params;
   const clubId = req.user.club_id;
 
@@ -562,7 +541,7 @@ router.delete('/members/:id', authenticateToken, requireRole('club_admin', 'supe
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    if (req.user.role === 'club_admin' && existing.club_id !== clubId) {
+    if (!req.user.club_ids.includes(existing.club_id)) {
       return res.status(403).json({ error: 'Forbidden: You can only remove members from your assigned club' });
     }
 
@@ -577,6 +556,157 @@ router.delete('/members/:id', authenticateToken, requireRole('club_admin', 'supe
   } catch (err) {
     console.error('Error deleting club member:', err);
     res.status(500).json({ error: 'Failed to delete club member' });
+  }
+});
+
+// ==========================================
+// ADMIN (CLUB ADMIN) MANAGEMENT
+// ==========================================
+
+// GET /api/admin/my-clubs - Clubs assigned to the logged-in admin
+router.get('/my-clubs', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  try {
+    const db = await getDb();
+    const clubs = await db.all(
+      `SELECT c.id, c.name, c.slug, c.club_code, c.logo_url, c.category, c.recruitment_open
+       FROM club_admins ca
+       JOIN clubs c ON ca.club_id = c.id
+       WHERE ca.user_id = ?
+       ORDER BY ca.id ASC`,
+      [req.user.id]
+    );
+    res.json({ count: clubs.length, clubs });
+  } catch (err) {
+    console.error('Error fetching assigned clubs:', err);
+    res.status(500).json({ error: 'Failed to retrieve assigned clubs' });
+  }
+});
+
+// GET /api/admin/admins - List admins across the logged-in admin's clubs
+router.get('/admins', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  try {
+    const db = await getDb();
+    const admins = await db.all(
+      `SELECT u.id, u.name, u.email, u.created_at, ca.club_id, ca.created_at as assigned_at,
+              c.name as club_name, c.slug as club_slug
+       FROM club_admins ca
+       JOIN users u ON ca.user_id = u.id
+       LEFT JOIN clubs c ON ca.club_id = c.id
+       WHERE ca.club_id IN (${(req.user.club_ids || []).map(() => '?').join(',') || 'NULL'})
+       ORDER BY u.name ASC`,
+      req.user.club_ids || []
+    );
+    res.json({ count: admins.length, admins });
+  } catch (err) {
+    console.error('Error fetching admins:', err);
+    res.status(500).json({ error: 'Failed to retrieve admins' });
+  }
+});
+
+// POST /api/admin/admins - Create (or link) a club admin for one of my clubs
+router.post('/admins', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  const { name, email, password } = req.body;
+  const rawClubId = req.body.club_id ?? req.query.club_id;
+
+  if (!email || !email.trim()) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  const targetClubId = rawClubId ? parseInt(rawClubId) : (req.user.club_ids || [])[0];
+  if (!targetClubId || !(req.user.club_ids || []).includes(targetClubId)) {
+    return res.status(403).json({ error: 'Forbidden: You can only assign admins to your own clubs.' });
+  }
+
+  try {
+    const db = await getDb();
+    const normalizedEmail = email.toLowerCase().trim();
+    let user = await db.get('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
+    let created = false;
+
+    if (!user) {
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Name is required for a new admin' });
+      }
+      if (!password || password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+      }
+      const bcrypt = (await import('bcryptjs')).default;
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const result = await db.run(
+        `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'club_admin')`,
+        [name.trim(), normalizedEmail, hashedPassword]
+      );
+      user = { id: result.lastID, name: name.trim(), email: normalizedEmail };
+      created = true;
+    } else if (user.role !== 'club_admin') {
+      await db.run(`UPDATE users SET role = 'club_admin', updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [user.id]);
+    }
+
+    const currentAssignment = await db.get(
+      'SELECT club_id FROM club_admins WHERE user_id = ?',
+      [user.id]
+    );
+
+    if (currentAssignment) {
+      if (currentAssignment.club_id === targetClubId) {
+        return res.status(400).json({ error: 'This user is already an admin of that club' });
+      }
+      return res.status(400).json({ error: 'Each admin can manage only one club' });
+    }
+
+    await db.run('INSERT INTO club_admins (user_id, club_id) VALUES (?, ?)', [user.id, targetClubId]);
+
+    await db.run(
+      'INSERT INTO audit_logs (user_id, club_id, action, entity_type, entity_id, metadata) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.user.id, targetClubId, 'ASSIGN_CLUB_ADMIN', 'user', user.id, JSON.stringify({ email: normalizedEmail })]
+    );
+
+    res.status(201).json({
+      message: created ? 'New club admin created and assigned' : 'Existing user assigned as club admin',
+      admin: { id: user.id, name: user.name, email: user.email, club_id: targetClubId }
+    });
+  } catch (err) {
+    console.error('Error creating club admin:', err);
+    res.status(500).json({ error: 'Failed to create club admin' });
+  }
+});
+
+// DELETE /api/admin/admins/:userId - Remove an admin assignment from one of my clubs
+router.delete('/admins/:userId', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  const userId = parseInt(req.params.userId);
+  const rawClubId = req.body.club_id ?? req.query.club_id;
+  const targetClubId = rawClubId ? parseInt(rawClubId) : (req.user.club_ids || [])[0];
+
+  if (!targetClubId || !(req.user.club_ids || []).includes(targetClubId)) {
+    return res.status(403).json({ error: 'Forbidden: You can only manage admins of your own clubs.' });
+  }
+
+  if (userId === req.user.id) {
+    return res.status(400).json({ error: 'You cannot remove your own admin access' });
+  }
+
+  try {
+    const db = await getDb();
+    const assignment = await db.get(
+      'SELECT id FROM club_admins WHERE user_id = ? AND club_id = ?',
+      [userId, targetClubId]
+    );
+
+    if (!assignment) {
+      return res.status(404).json({ error: 'Admin assignment not found' });
+    }
+
+    await db.run('DELETE FROM club_admins WHERE user_id = ? AND club_id = ?', [userId, targetClubId]);
+
+    await db.run(
+      'INSERT INTO audit_logs (user_id, club_id, action, entity_type, entity_id, metadata) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.user.id, targetClubId, 'REVOKE_CLUB_ADMIN', 'user', userId, JSON.stringify({})]
+    );
+
+    res.json({ message: 'Admin access removed' });
+  } catch (err) {
+    console.error('Error removing club admin:', err);
+    res.status(500).json({ error: 'Failed to remove club admin' });
   }
 });
 

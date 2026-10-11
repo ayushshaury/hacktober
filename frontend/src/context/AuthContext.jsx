@@ -59,24 +59,6 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
-  const register = async (name, email, password) => {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password })
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || 'Registration failed');
-    }
-
-    localStorage.setItem('bit_clubs_token', data.token);
-    setToken(data.token);
-    setUser(data.user);
-    return data.user;
-  };
-
   const logout = () => {
     localStorage.removeItem('bit_clubs_token');
     setToken(null);
@@ -88,7 +70,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

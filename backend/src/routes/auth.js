@@ -3,66 +3,14 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { getDb } from '../db/db.js';
-import { authenticateToken, requireRole, enforceClubIsolation } from '../middleware/auth.js';
+import { authenticateToken, requireRole, enforceClubIsolation, resolveClubId } from '../middleware/auth.js';
 
 dotenv.config();
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default_secret';
 
-// Register standard student account
-router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
-
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email, and password are required' });
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({ error: 'Please provide a valid email address' });
-  }
-
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
-  }
-
-  try {
-    const db = await getDb();
-    
-    const existing = await db.get('SELECT id FROM users WHERE email = ?', [email.toLowerCase().trim()]);
-    if (existing) {
-      return res.status(400).json({ error: 'An account with this email already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const result = await db.run(
-      `INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)`,
-      [name.trim(), email.toLowerCase().trim(), hashedPassword, 'student']
-    );
-
-    const userId = result.lastID;
-    const token = jwt.sign({ id: userId, role: 'student' }, JWT_SECRET, { expiresIn: '7d' });
-
-    res.status(201).json({
-      message: 'Account created successfully',
-      token,
-      user: {
-        id: userId,
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        role: 'student',
-        club_id: null,
-        club_name: null
-      }
-    });
-  } catch (err) {
-    console.error('Registration error:', err);
-    res.status(500).json({ error: 'Failed to create user account' });
-  }
-});
-
-// Login for all roles (Student, Club Admin, Super Admin)
+// Login (club admins only)
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -83,24 +31,22 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    let club_id = null;
-    let club_name = null;
-    let club_slug = null;
-
-    if (user.role === 'club_admin') {
-      const adminRecord = await db.get(
-        `SELECT ca.club_id, c.name as club_name, c.slug as club_slug 
-         FROM club_admins ca 
-         LEFT JOIN clubs c ON ca.club_id = c.id 
-         WHERE ca.user_id = ?`,
-        [user.id]
-      );
-      if (adminRecord) {
-        club_id = adminRecord.club_id;
-        club_name = adminRecord.club_name;
-        club_slug = adminRecord.club_slug;
-      }
+    if (user.role !== 'club_admin') {
+      return res.status(403).json({ error: 'Only club admin accounts can log in.' });
     }
+
+    const clubs = await db.all(
+      `SELECT ca.club_id, c.name as club_name, c.slug as club_slug
+       FROM club_admins ca
+       LEFT JOIN clubs c ON ca.club_id = c.id
+       WHERE ca.user_id = ?
+       ORDER BY ca.id ASC`,
+      [user.id]
+    );
+
+    const club_id = clubs[0] ? clubs[0].club_id : null;
+    const club_name = clubs[0] ? clubs[0].club_name : null;
+    const club_slug = clubs[0] ? clubs[0].club_slug : null;
 
     const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 
@@ -123,7 +69,8 @@ router.post('/login', async (req, res) => {
         created_at: user.created_at,
         club_id,
         club_name,
-        club_slug
+        club_slug,
+        clubs
       }
     });
   } catch (err) {
@@ -138,7 +85,7 @@ router.get('/me', authenticateToken, async (req, res) => {
     const db = await getDb();
     let clubInfo = null;
 
-    if (req.user.role === 'club_admin' && req.user.club_id) {
+    if (req.user.club_id) {
       clubInfo = await db.get('SELECT id, name, slug, club_code, logo_url FROM clubs WHERE id = ?', [req.user.club_id]);
     }
 
@@ -160,7 +107,8 @@ router.get('/me', authenticateToken, async (req, res) => {
         club_id: req.user.club_id,
         club_name: req.user.club_name,
         club_slug: req.user.club_slug,
-        club: clubInfo
+        club: clubInfo,
+        clubs: req.user.clubs
       }
     });
   } catch (err) {
@@ -197,7 +145,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
     );
 
     let assignedClub = null;
-    if (req.user.role === 'club_admin' && req.user.club_id) {
+    if (req.user.club_id) {
       assignedClub = await db.get(
         'SELECT id, name, slug, club_code, logo_url, category FROM clubs WHERE id = ?',
         [req.user.club_id]
@@ -224,6 +172,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
         club_slug: req.user.club_slug
       },
       assigned_club: assignedClub,
+      assigned_clubs: req.user.clubs,
       club_memberships: memberships || [],
       applications: applications || []
     });
@@ -334,7 +283,7 @@ router.put('/change-password', authenticateToken, async (req, res) => {
 });
 
 // Security Test Endpoint: Verify Club Data Isolation Enforcement
-router.get('/test-club-access/:clubId', authenticateToken, requireRole('club_admin', 'super_admin'), enforceClubIsolation('clubId'), async (req, res) => {
+router.get('/test-club-access/:clubId', authenticateToken, requireRole('club_admin'), enforceClubIsolation('clubId'), async (req, res) => {
   res.json({
     message: 'Access granted. Server-side isolation check passed.',
     user: {

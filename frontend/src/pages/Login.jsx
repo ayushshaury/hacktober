@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, Key, Mail, AlertCircle } from 'lucide-react';
 import { PixelIcon } from '../components/PixelIcon';
@@ -19,14 +19,8 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      const loggedUser = await login(email, password);
-      if (loggedUser.role === 'super_admin') {
-        navigate('/super-admin');
-      } else if (loggedUser.role === 'club_admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/');
-      }
+      await login(email, password);
+      navigate('/admin/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {
@@ -58,7 +52,7 @@ export const Login = () => {
               SIGN IN
             </h2>
             <p style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>
-              ACCESS BIT SINDRI CLUBS PORTAL
+              CLUB ADMIN PORTAL
             </p>
           </div>
 
@@ -88,7 +82,7 @@ export const Login = () => {
               <input
                 type="email"
                 className="pixel-input"
-                placeholder="your.email@bitsindri.ac.in"
+                placeholder="rahul@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -127,29 +121,32 @@ export const Login = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
                 type="button"
-                onClick={() => fillDemoAccount('ayushshaury@gmail.com', 'admin123')}
+                onClick={() => fillDemoAccount('rahul@example.com', 'password123')}
                 className="filter-btn"
                 style={{ fontSize: '0.72rem', padding: '6px' }}
               >
-                ADMIN DEMO
+                RAHUL - HNCC
               </button>
               <button
                 type="button"
-                onClick={() => fillDemoAccount('rahul.verma@bitsindri.ac.in', 'student123')}
+                onClick={() => fillDemoAccount('sneha@example.com', 'password123')}
                 className="filter-btn"
                 style={{ fontSize: '0.72rem', padding: '6px' }}
               >
-                STUDENT DEMO
+                SNEHA - HNCC
+              </button>
+              <button
+                type="button"
+                onClick={() => fillDemoAccount('aman@example.com', 'password123')}
+                className="filter-btn"
+                style={{ fontSize: '0.72rem', padding: '6px' }}
+              >
+                AMAN - ISTE
               </button>
             </div>
           </div>
 
-          <div style={{ marginTop: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            NEW TO THE PORTAL?{' '}
-            <Link to="/register" style={{ color: 'var(--color-gold)', textDecoration: 'none', fontWeight: 700 }}>
-              REGISTER HERE
-            </Link>
-          </div>
+        </div>
 
         </div>
 

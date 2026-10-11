@@ -7,7 +7,6 @@ import clubsRoutes from './routes/clubs.js';
 import eventsRoutes from './routes/events.js';
 import adminRoutes from './routes/admin.js';
 import inductionRoutes from './routes/induction.js';
-import superAdminRoutes from './routes/super_admin.js';
 import recommendationsRoutes from './routes/recommendations.js';
 import uploadRoutes from './routes/upload.js';
 import { getDb } from './db/db.js';
@@ -55,7 +54,6 @@ app.use('/api/clubs', clubsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/induction', inductionRoutes);
-app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
 app.use('/api/upload', uploadRoutes);
 

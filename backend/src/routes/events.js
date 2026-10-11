@@ -1,6 +1,6 @@
 import express from 'express';
 import { getDb } from '../db/db.js';
-import { authenticateToken, requireRole, enforceClubIsolation } from '../middleware/auth.js';
+import { authenticateToken, requireRole, enforceClubIsolation, resolveClubId } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -87,17 +87,14 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/events - Create new event (Club Admin / Super Admin)
-router.post('/', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.post('/', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { title, description, event_date, start_time, end_time, venue, registration_url, image_url, status, club_id } = req.body;
 
   if (!title || !event_date) {
     return res.status(400).json({ error: 'Title and event date are required' });
   }
 
-  let targetClubId = club_id;
-  if (req.user.role === 'club_admin') {
-    targetClubId = req.user.club_id;
-  }
+  const targetClubId = resolveClubId(req);
 
   if (!targetClubId) {
     return res.status(400).json({ error: 'Assigned club ID is required' });
@@ -141,7 +138,7 @@ router.post('/', authenticateToken, requireRole('club_admin', 'super_admin'), as
 });
 
 // PUT /api/events/:id - Edit existing event
-router.put('/:id', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.put('/:id', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { id } = req.params;
   const { title, description, event_date, start_time, end_time, venue, registration_url, image_url, status } = req.body;
 
@@ -154,7 +151,7 @@ router.put('/:id', authenticateToken, requireRole('club_admin', 'super_admin'), 
     }
 
     // Verify club admin ownership
-    if (req.user.role === 'club_admin' && req.user.club_id !== event.club_id) {
+    if (!req.user.club_ids.includes(event.club_id)) {
       return res.status(403).json({ error: 'Forbidden: You can only edit events for your assigned club' });
     }
 
@@ -185,7 +182,7 @@ router.put('/:id', authenticateToken, requireRole('club_admin', 'super_admin'), 
 });
 
 // DELETE /api/events/:id - Delete event
-router.delete('/:id', authenticateToken, requireRole('club_admin', 'super_admin'), async (req, res) => {
+router.delete('/:id', authenticateToken, requireRole('club_admin'), async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -196,7 +193,7 @@ router.delete('/:id', authenticateToken, requireRole('club_admin', 'super_admin'
       return res.status(404).json({ error: 'Event not found' });
     }
 
-    if (req.user.role === 'club_admin' && req.user.club_id !== event.club_id) {
+    if (!req.user.club_ids.includes(event.club_id)) {
       return res.status(403).json({ error: 'Forbidden: You can only delete events for your assigned club' });
     }
 

@@ -238,11 +238,11 @@ export const Profile = () => {
                   <span className="badge" style={{ 
                     fontSize: '0.74rem', 
                     padding: '3px 10px',
-                    backgroundColor: user.role === 'super_admin' ? '#FCE8E6' : user.role === 'club_admin' ? '#FEF7E0' : '#EBF5FF',
-                    color: user.role === 'super_admin' ? '#C5221F' : user.role === 'club_admin' ? '#B08800' : '#0066CC',
+                    backgroundColor: '#FEF7E0',
+                    color: '#B08800',
                     border: '1px solid rgba(0,0,0,0.06)'
                   }}>
-                    {user.role === 'super_admin' ? 'Super Administrator' : user.role === 'club_admin' ? 'Club Administrator' : 'Student Member'}
+                    Club Administrator
                   </span>
                   {assignedClub && (
                     <span className="badge badge-technical" style={{ fontSize: '0.74rem' }}>
@@ -274,11 +274,6 @@ export const Profile = () => {
               {user.role === 'club_admin' && (
                 <Link to="/admin/dashboard" className="btn btn-secondary" style={{ padding: '9px 18px', fontSize: '0.84rem' }}>
                   <Building2 size={15} /> Club Workspace
-                </Link>
-              )}
-              {user.role === 'student' && (
-                <Link to="/my-applications" className="btn btn-secondary" style={{ padding: '9px 18px', fontSize: '0.84rem' }}>
-                  <FileText size={15} /> My Applications
                 </Link>
               )}
             </div>
@@ -326,7 +321,6 @@ export const Profile = () => {
             { id: 'social', label: 'Social & Links', icon: Globe },
             { id: 'security', label: 'Security & Password', icon: KeyRound },
             { id: 'memberships', label: `My Club Roles (${memberships.length})`, icon: Award },
-            ...(user.role === 'student' ? [{ id: 'applications', label: `Induction Applications (${applications.length})`, icon: FileText }] : [])
           ].map(tab => {
             const IconComp = tab.icon;
             const isSel = activeTab === tab.id;

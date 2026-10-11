@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { PixelIcon } from './PixelIcon';
-import { Search, LogOut, LayoutDashboard, ShieldAlert, User, FileText } from 'lucide-react';
+import { Search, LogOut, LayoutDashboard, User } from 'lucide-react';
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
@@ -110,25 +110,6 @@ export const Navbar = () => {
             );
           })}
 
-          {user && user.role === 'student' && (
-            <Link
-              to="/my-applications"
-              style={{
-                fontFamily: 'var(--font-pixel)',
-                fontSize: '0.85rem',
-                letterSpacing: '0.04em',
-                fontWeight: 700,
-                color: isActive('/my-applications') ? 'var(--color-gold)' : 'var(--text-muted)',
-                padding: '8px 2px',
-                borderBottom: isActive('/my-applications') ? '2px solid var(--color-gold)' : '2px solid transparent',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-            >
-              <FileText size={13} /> APPLICATIONS
-            </Link>
-          )}
         </div>
 
         {/* Right: Search & Sign In / User Actions */}
@@ -156,18 +137,7 @@ export const Navbar = () => {
 
           {user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {/* Role Shortcut */}
-              {user.role === 'super_admin' && (
-                <Link
-                  to="/super-admin"
-                  className="btn-pixel-outline"
-                  style={{ padding: '6px 12px', fontSize: '0.78rem', borderColor: 'var(--color-coral)', color: 'var(--color-coral)' }}
-                >
-                  <ShieldAlert size={13} /> SUPER ADMIN
-                </Link>
-              )}
-
-              {(user.role === 'club_admin' || user.role === 'super_admin') && (
+              {user.role === 'club_admin' && (
                 <Link
                   to="/admin/dashboard"
                   className="btn-pixel-outline"
