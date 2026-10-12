@@ -1,28 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { 
-  User, Mail, Phone, BookOpen, Calendar, ShieldCheck, 
-  Linkedin, Github, Globe, KeyRound, CheckCircle2, AlertCircle, 
-  Save, Eye, EyeOff, Building2, Award, FileText, ArrowRight, Sparkles
+import {
+  User, Mail, Phone, BookOpen, ShieldCheck,
+  Linkedin, Github, Globe, KeyRound, CheckCircle2, AlertCircle,
+  Save, Eye, EyeOff, Building2, Award, FileText, ArrowRight
 } from 'lucide-react';
 import { ImageUploader } from '../components/ImageUploader';
 
 export const Profile = () => {
   const { user, token, updateUser } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('details'); // 'details', 'social', 'security', 'memberships', 'applications'
+  const [activeTab, setActiveTab] = useState('details');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
-  // Extended profile data
   const [memberships, setMemberships] = useState([]);
   const [applications, setApplications] = useState([]);
   const [assignedClub, setAssignedClub] = useState(null);
 
-  // Profile Form State
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -36,7 +34,6 @@ export const Profile = () => {
     github_url: ''
   });
 
-  // Password Form State
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -168,35 +165,42 @@ export const Profile = () => {
 
   const getStatusBadgeStyle = (st) => {
     switch (st) {
-      case 'Submitted': return { bg: '#EBF5FF', text: '#0066CC', border: '#BAE0FD' };
-      case 'Under Review': return { bg: '#FEF7E0', text: '#B08800', border: '#FCE8B2' };
-      case 'Shortlisted': return { bg: '#E6F4EA', text: '#137333', border: '#CEEAD6' };
-      case 'Selected': return { bg: '#D1FAE5', text: '#065F46', border: '#6EE7B7' };
-      case 'Rejected': return { bg: '#FCE8E6', text: '#C5221F', border: '#FAD2CF' };
-      default: return { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' };
+      case 'Submitted': return { bg: 'rgba(56, 189, 248, 0.15)', text: 'var(--color-cyan)', border: 'rgba(56, 189, 248, 0.4)' };
+      case 'Under Review': return { bg: 'rgba(243, 208, 99, 0.15)', text: 'var(--color-gold)', border: 'rgba(243, 208, 99, 0.4)' };
+      case 'Shortlisted': return { bg: 'rgba(192, 132, 252, 0.15)', text: 'var(--color-purple)', border: 'rgba(192, 132, 252, 0.4)' };
+      case 'Selected': return { bg: 'rgba(74, 222, 128, 0.15)', text: 'var(--color-mint)', border: 'rgba(74, 222, 128, 0.4)' };
+      case 'Rejected': return { bg: 'rgba(240, 113, 103, 0.15)', text: 'var(--color-coral)', border: 'rgba(240, 113, 103, 0.4)' };
+      default: return { bg: 'rgba(142, 163, 180, 0.12)', text: 'var(--text-muted)', border: 'var(--border-card)' };
     }
   };
 
   if (loading) {
     return (
-      <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Loading My Profile...</div>
+      <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>LOADING PROFILE...</div>
       </div>
     );
   }
 
+  const tabs = [
+    { id: 'details', label: 'Personal', icon: User },
+    { id: 'social', label: 'Social Links', icon: Globe },
+    { id: 'security', label: 'Security', icon: KeyRound },
+    { id: 'memberships', label: `Memberships (${memberships.length})`, icon: Award },
+  ];
+
   return (
-    <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', paddingBottom: '80px' }} className="animate-fade-in">
-      
-      {/* Profile Hero Header Banner */}
-      <div style={{ 
-        backgroundColor: '#FFFFFF', 
-        borderBottom: '1px solid rgba(0,0,0,0.06)', 
-        padding: '44px 0 32px 0' 
+    <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px' }}>
+
+      {/* Profile Hero Banner */}
+      <div style={{
+        backgroundColor: 'var(--bg-dark)',
+        borderBottom: '1px solid var(--border-gold-dim)',
+        padding: '44px 0 32px 0'
       }}>
         <div className="container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '24px' }}>
-            
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               {formData.avatar_url ? (
                 <img
@@ -205,10 +209,9 @@ export const Profile = () => {
                   style={{
                     width: '74px',
                     height: '74px',
-                    borderRadius: '22px',
                     objectFit: 'cover',
-                    boxShadow: '0 8px 24px rgba(0, 113, 227, 0.15)',
-                    border: '2px solid #FFFFFF'
+                    border: '2px solid var(--border-gold)',
+                    boxShadow: '0 0 16px rgba(243, 208, 99, 0.25)'
                   }}
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
@@ -216,15 +219,16 @@ export const Profile = () => {
                 <div style={{
                   width: '74px',
                   height: '74px',
-                  borderRadius: '22px',
-                  background: 'linear-gradient(135deg, #0071E3 0%, #00C7BE 100%)',
-                  color: '#FFFFFF',
+                  background: 'var(--bg-card)',
+                  border: '2px solid var(--border-gold)',
+                  color: 'var(--color-gold)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  fontFamily: 'var(--font-pixel)',
                   fontWeight: 800,
                   fontSize: '2rem',
-                  boxShadow: '0 8px 24px rgba(0, 113, 227, 0.25)'
+                  boxShadow: '0 0 16px rgba(243, 208, 99, 0.2)'
                 }}>
                   {formData.name ? formData.name.charAt(0).toUpperCase() : 'U'}
                 </div>
@@ -232,26 +236,34 @@ export const Profile = () => {
 
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <h1 style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.025em' }}>
+                  <h1 style={{
+                    fontFamily: 'var(--font-pixel)',
+                    fontSize: '1.9rem',
+                    color: 'var(--text-cream)',
+                    letterSpacing: '0.04em'
+                  }}>
                     {formData.name || 'My Profile'}
                   </h1>
-                  <span className="badge" style={{ 
-                    fontSize: '0.74rem', 
-                    padding: '3px 10px',
-                    backgroundColor: '#FEF7E0',
-                    color: '#B08800',
-                    border: '1px solid rgba(0,0,0,0.06)'
-                  }}>
-                    Club Administrator
+                  <span className="badge-pixel gold" style={{ fontSize: '0.72rem' }}>
+                    Club Admin
                   </span>
                   {assignedClub && (
-                    <span className="badge badge-technical" style={{ fontSize: '0.74rem' }}>
+                    <span className="badge-pixel tech" style={{ fontSize: '0.72rem' }}>
                       {assignedClub.name}
                     </span>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '6px', flexWrap: 'wrap', fontSize: '0.86rem', color: 'var(--text-muted)' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  marginTop: '8px',
+                  flexWrap: 'wrap',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.82rem',
+                  color: 'var(--text-muted)'
+                }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                     <Mail size={13} /> {formData.email}
                   </span>
@@ -269,11 +281,10 @@ export const Profile = () => {
               </div>
             </div>
 
-            {/* Quick Actions */}
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               {user.role === 'club_admin' && (
-                <Link to="/admin/dashboard" className="btn btn-secondary" style={{ padding: '9px 18px', fontSize: '0.84rem' }}>
-                  <Building2 size={15} /> Club Workspace
+                <Link to="/admin/dashboard" className="btn-pixel-outline" style={{ padding: '8px 16px', fontSize: '0.82rem' }}>
+                  <Building2 size={14} /> Club Workspace
                 </Link>
               )}
             </div>
@@ -284,44 +295,59 @@ export const Profile = () => {
 
       {/* Main Container */}
       <div className="container" style={{ marginTop: '32px' }}>
-        
-        {/* Alerts & Notifications */}
+
+        {/* Alerts */}
         {msg && (
-          <div style={{ backgroundColor: '#E6F4EA', color: '#137333', border: '1px solid #CEEAD6', padding: '12px 18px', borderRadius: '12px', marginBottom: '22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600 }}>
+          <div style={{
+            backgroundColor: 'var(--color-mint-dim)',
+            color: 'var(--color-mint)',
+            border: '1px solid rgba(74, 222, 128, 0.4)',
+            padding: '12px 18px',
+            marginBottom: '22px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.85rem',
+            fontWeight: 700
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CheckCircle2 size={16} /> {msg}
             </div>
-            <button onClick={() => setMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#137333', fontWeight: 700 }}>✕</button>
+            <button onClick={() => setMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-mint)', fontWeight: 700 }}>✕</button>
           </div>
         )}
         {error && (
-          <div style={{ backgroundColor: '#FCE8E6', color: '#C5221F', border: '1px solid #FAD2CF', padding: '12px 18px', borderRadius: '12px', marginBottom: '22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600 }}>
+          <div style={{
+            backgroundColor: 'var(--color-coral-dim)',
+            color: 'var(--color-coral)',
+            border: '1px solid rgba(240, 113, 103, 0.4)',
+            padding: '12px 18px',
+            marginBottom: '22px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.85rem',
+            fontWeight: 700
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertCircle size={16} /> {error}
             </div>
-            <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5221F', fontWeight: 700 }}>✕</button>
+            <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-coral)', fontWeight: 700 }}>✕</button>
           </div>
         )}
 
-        {/* Apple Style Floating Pill Tabs */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '6px', 
-          background: 'rgba(245, 245, 247, 0.7)', 
-          padding: '5px', 
-          borderRadius: '999px', 
-          border: '1px solid rgba(0,0,0,0.05)', 
-          marginBottom: '32px', 
-          overflowX: 'auto',
-          width: 'fit-content',
-          maxWidth: '100%'
+        {/* Tab Filters */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          flexWrap: 'wrap',
+          marginBottom: '32px',
+          borderBottom: '1px solid var(--border-subtle)',
+          paddingBottom: '16px'
         }}>
-          {[
-            { id: 'details', label: 'Personal & Academic', icon: User },
-            { id: 'social', label: 'Social & Links', icon: Globe },
-            { id: 'security', label: 'Security & Password', icon: KeyRound },
-            { id: 'memberships', label: `My Club Roles (${memberships.length})`, icon: Award },
-          ].map(tab => {
+          {tabs.map(tab => {
             const IconComp = tab.icon;
             const isSel = activeTab === tab.id;
             return (
@@ -329,42 +355,26 @@ export const Profile = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '7px 16px',
-                  borderRadius: '999px',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  border: 'none',
-                  backgroundColor: isSel ? '#0071E3' : 'transparent',
-                  color: isSel ? '#FFFFFF' : 'var(--text-muted)',
-                  boxShadow: isSel ? '0 2px 8px rgba(0, 113, 227, 0.25)' : 'none',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'var(--transition-smooth)'
-                }}
+                className={`filter-btn ${isSel ? 'active' : ''}`}
               >
-                <IconComp size={14} /> {tab.label}
+                <IconComp size={13} /> {tab.label}
               </button>
             );
           })}
         </div>
 
-        {/* TAB 1: PERSONAL & ACADEMIC DETAILS */}
+        {/* TAB 1: PERSONAL & ACADEMIC */}
         {activeTab === 'details' && (
-          <div className="glass-panel" style={{ padding: '36px', maxWidth: '780px' }}>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
+          <div className="pixel-panel pixel-corner-mark" style={{ padding: '32px', maxWidth: '780px' }}>
+            <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.25rem', color: 'var(--text-cream)', marginBottom: '6px' }}>
               Personal & Academic Profile
             </h3>
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '26px' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '24px' }}>
               Update your student identification details, department, roll number, and avatar.
             </p>
 
-            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-              
-              {/* Profile Photo Uploader */}
+            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
               <ImageUploader
                 value={formData.avatar_url}
                 onChange={(url) => setFormData(prev => ({ ...prev, avatar_url: url }))}
@@ -378,7 +388,7 @@ export const Profile = () => {
                   <label className="form-label">Full Name *</label>
                   <input
                     type="text"
-                    className="input"
+                    className="pixel-input"
                     value={formData.name}
                     onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     required
@@ -389,12 +399,11 @@ export const Profile = () => {
                   <label className="form-label">Email Address (Institutional)</label>
                   <input
                     type="email"
-                    className="input"
+                    className="pixel-input"
                     value={formData.email}
                     disabled
-                    style={{ backgroundColor: '#F8FAFC', color: 'var(--text-muted)', cursor: 'not-allowed' }}
                   />
-                  <span style={{ fontSize: '0.74rem', color: '#137333', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--color-mint)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-mono)' }}>
                     <ShieldCheck size={12} /> Verified Institutional Identity
                   </span>
                 </div>
@@ -405,7 +414,7 @@ export const Profile = () => {
                   <label className="form-label">Phone Number</label>
                   <input
                     type="tel"
-                    className="input"
+                    className="pixel-input"
                     placeholder="+91 9876543210"
                     value={formData.phone}
                     onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
@@ -416,7 +425,7 @@ export const Profile = () => {
                   <label className="form-label">College Roll Number</label>
                   <input
                     type="text"
-                    className="input"
+                    className="pixel-input"
                     placeholder="e.g. 2301042"
                     value={formData.roll_number}
                     onChange={e => setFormData(prev => ({ ...prev, roll_number: e.target.value }))}
@@ -427,7 +436,7 @@ export const Profile = () => {
                   <label className="form-label">Academic Batch / Year</label>
                   <input
                     type="text"
-                    className="input"
+                    className="pixel-input"
                     placeholder="e.g. 2023-2027"
                     value={formData.batch_year}
                     onChange={e => setFormData(prev => ({ ...prev, batch_year: e.target.value }))}
@@ -438,7 +447,7 @@ export const Profile = () => {
               <div className="form-group">
                 <label className="form-label">Department / Branch</label>
                 <select
-                  className="input"
+                  className="pixel-input"
                   value={formData.department}
                   onChange={e => setFormData(prev => ({ ...prev, department: e.target.value }))}
                 >
@@ -458,7 +467,7 @@ export const Profile = () => {
               <div className="form-group">
                 <label className="form-label">Bio / About Me</label>
                 <textarea
-                  className="input"
+                  className="pixel-input"
                   rows={3}
                   placeholder="Tell campus clubs about your interests, technical domains, and aspirations..."
                   value={formData.bio}
@@ -469,10 +478,10 @@ export const Profile = () => {
               <button
                 type="submit"
                 disabled={saving}
-                className="btn btn-primary"
-                style={{ width: 'fit-content', padding: '12px 28px', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                className="btn-pixel-gold"
+                style={{ width: 'fit-content', padding: '10px 22px', marginTop: '6px' }}
               >
-                <Save size={16} /> {saving ? 'Saving Profile...' : 'Save Profile Changes'}
+                <Save size={15} /> {saving ? 'Saving Profile...' : 'Save Profile Changes'}
               </button>
 
             </form>
@@ -481,22 +490,22 @@ export const Profile = () => {
 
         {/* TAB 2: SOCIAL & LINKS */}
         {activeTab === 'social' && (
-          <div className="glass-panel" style={{ padding: '36px', maxWidth: '780px' }}>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
+          <div className="pixel-panel pixel-corner-mark" style={{ padding: '32px', maxWidth: '780px' }}>
+            <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.25rem', color: 'var(--text-cream)', marginBottom: '6px' }}>
               Social & Portfolio Profiles
             </h3>
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '26px' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '24px' }}>
               Share your professional links to showcase your work to club leaders and coordinators.
             </p>
 
-            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div className="form-group">
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Linkedin size={15} color="#0071E3" /> LinkedIn Profile URL
+                  <Linkedin size={14} color="var(--color-cyan)" /> LinkedIn Profile URL
                 </label>
                 <input
                   type="url"
-                  className="input"
+                  className="pixel-input"
                   placeholder="https://linkedin.com/in/username"
                   value={formData.linkedin_url}
                   onChange={e => setFormData(prev => ({ ...prev, linkedin_url: e.target.value }))}
@@ -505,11 +514,11 @@ export const Profile = () => {
 
               <div className="form-group">
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Github size={15} color="#0F172A" /> GitHub Profile URL
+                  <Github size={14} color="var(--text-cream)" /> GitHub Profile URL
                 </label>
                 <input
                   type="url"
-                  className="input"
+                  className="pixel-input"
                   placeholder="https://github.com/username"
                   value={formData.github_url}
                   onChange={e => setFormData(prev => ({ ...prev, github_url: e.target.value }))}
@@ -519,35 +528,36 @@ export const Profile = () => {
               <button
                 type="submit"
                 disabled={saving}
-                className="btn btn-primary"
-                style={{ width: 'fit-content', padding: '12px 28px', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                className="btn-pixel-gold"
+                style={{ width: 'fit-content', padding: '10px 22px', marginTop: '6px' }}
               >
-                <Save size={16} /> {saving ? 'Saving Links...' : 'Save Social Profiles'}
+                <Save size={15} /> {saving ? 'Saving Links...' : 'Save Social Profiles'}
               </button>
             </form>
           </div>
         )}
 
-        {/* TAB 3: ACCOUNT SECURITY & PASSWORD */}
+        {/* TAB 3: SECURITY */}
         {activeTab === 'security' && (
-          <div className="glass-panel" style={{ padding: '36px', maxWidth: '640px' }}>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
+          <div className="pixel-panel pixel-corner-mark" style={{ padding: '32px', maxWidth: '640px' }}>
+            <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.25rem', color: 'var(--text-cream)', marginBottom: '6px' }}>
               Change Password
             </h3>
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '26px' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '24px' }}>
               Ensure your account is protected with a strong password (minimum 6 characters).
             </p>
 
-            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group">
                 <label className="form-label">Current Password *</label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showCurrentPwd ? 'text' : 'password'}
-                    className="input"
+                    className="pixel-input"
                     value={currentPassword}
                     onChange={e => setCurrentPassword(e.target.value)}
                     required
+                    style={{ paddingRight: '40px' }}
                   />
                   <button
                     type="button"
@@ -564,11 +574,12 @@ export const Profile = () => {
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showNewPwd ? 'text' : 'password'}
-                    className="input"
+                    className="pixel-input"
                     placeholder="Minimum 6 characters"
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
                     required
+                    style={{ paddingRight: '40px' }}
                   />
                   <button
                     type="button"
@@ -584,7 +595,7 @@ export const Profile = () => {
                 <label className="form-label">Confirm New Password *</label>
                 <input
                   type="password"
-                  className="input"
+                  className="pixel-input"
                   placeholder="Re-type new password"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
@@ -595,76 +606,87 @@ export const Profile = () => {
               <button
                 type="submit"
                 disabled={passwordSaving}
-                className="btn btn-primary"
-                style={{ width: 'fit-content', padding: '12px 28px', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                className="btn-pixel-gold"
+                style={{ width: 'fit-content', padding: '10px 22px', marginTop: '8px' }}
               >
-                <KeyRound size={16} /> {passwordSaving ? 'Updating...' : 'Update Password'}
+                <KeyRound size={15} /> {passwordSaving ? 'Updating...' : 'Update Password'}
               </button>
             </form>
           </div>
         )}
 
-        {/* TAB 4: MY CLUB MEMBERSHIPS */}
+        {/* TAB 4: MEMBERSHIPS */}
         {activeTab === 'memberships' && (
           <div>
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)' }}>
+            <div style={{ marginBottom: '22px' }}>
+              <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.25rem', color: 'var(--text-cream)' }}>
                 Club Memberships & Executive Roles
               </h3>
-              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                 Clubs and societies where you are officially registered in the club roster.
               </p>
             </div>
 
             {memberships.length === 0 ? (
-              <div className="glass-panel" style={{ padding: '60px 24px', textAlign: 'center' }}>
-                <Award size={42} color="var(--text-light)" style={{ marginBottom: '14px' }} />
-                <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>No Official Club Memberships Yet</h4>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '6px', marginBottom: '24px', maxWidth: '480px', margin: '6px auto 24px auto' }}>
+              <div className="pixel-panel pixel-corner-mark" style={{ padding: '56px 24px', textAlign: 'center' }}>
+                <Award size={40} color="var(--text-dim)" style={{ marginBottom: '14px' }} />
+                <h4 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.05rem', color: 'var(--text-cream)', marginBottom: '6px' }}>
+                  No Official Club Memberships Yet
+                </h4>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', maxWidth: '480px', margin: '0 auto 22px auto' }}>
                   Apply for open club inductions to get selected and registered on official club rosters.
                 </p>
-                <Link to="/clubs" className="btn btn-primary" style={{ padding: '10px 24px' }}>
+                <Link to="/clubs" className="btn-pixel-gold" style={{ padding: '9px 20px', fontSize: '0.88rem' }}>
                   Explore Campus Clubs
                 </Link>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
                 {memberships.map((m) => (
-                  <div key={m.id} className="glass-panel apple-box-hover" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
-                        {m.club_logo ? (
-                          <img
-                            src={getAvatarSrc(m.club_logo)}
-                            alt={m.club_name}
-                            style={{ width: '48px', height: '48px', borderRadius: '14px', objectFit: 'cover' }}
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
-                        ) : (
-                          <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: '#EBF5FF', color: '#0066CC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-                            {m.club_name.charAt(0)}
-                          </div>
-                        )}
-                        <div>
-                          <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)' }}>{m.club_name}</h4>
-                          <span className="badge badge-technical" style={{ fontSize: '0.72rem', marginTop: '2px' }}>{m.club_category}</span>
+                  <div key={m.id} className="pixel-card" style={{ padding: '22px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+                      {m.club_logo ? (
+                        <img
+                          src={getAvatarSrc(m.club_logo)}
+                          alt={m.club_name}
+                          style={{ width: '48px', height: '48px', objectFit: 'cover', border: '1px solid var(--border-card)' }}
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-card)',
+                          color: 'var(--color-gold)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontFamily: 'var(--font-pixel)',
+                          fontWeight: 800
+                        }}>
+                          {m.club_name.charAt(0)}
                         </div>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem', color: 'var(--text-body)' }}>
-                        <div><strong>Role:</strong> <span style={{ color: '#0066CC', fontWeight: 700 }}>{m.position}</span></div>
-                        <div><strong>Status:</strong> <span style={{ color: '#137333', fontWeight: 600 }}>{m.status}</span></div>
-                        {m.joined_date && (
-                          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                            Member since {new Date(m.joined_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                          </div>
-                        )}
+                      )}
+                      <div>
+                        <h4 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1rem', color: 'var(--text-cream)', marginBottom: '4px' }}>{m.club_name}</h4>
+                        <span className="badge-pixel tech" style={{ fontSize: '0.68rem' }}>{m.club_category}</span>
                       </div>
                     </div>
 
-                    <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid rgba(226, 232, 240, 0.7)' }}>
-                      <Link to={`/clubs/${m.club_slug}`} className="btn btn-secondary" style={{ width: '100%', padding: '8px', textAlign: 'center', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                        View Club Profile <ArrowRight size={13} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '0.82rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      <div><strong style={{ color: 'var(--text-cream)' }}>Role:</strong> <span style={{ color: 'var(--color-gold)', fontWeight: 700 }}>{m.position}</span></div>
+                      <div><strong style={{ color: 'var(--text-cream)' }}>Status:</strong> <span style={{ color: 'var(--color-mint)', fontWeight: 600 }}>{m.status}</span></div>
+                      {m.joined_date && (
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>
+                          Member since {new Date(m.joined_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
+                      <Link to={`/clubs/${m.club_slug}`} className="btn-pixel-outline" style={{ width: '100%', padding: '7px', justifyContent: 'center', fontSize: '0.8rem' }}>
+                        View Club Profile <ArrowRight size={12} />
                       </Link>
                     </div>
                   </div>
@@ -674,31 +696,33 @@ export const Profile = () => {
           </div>
         )}
 
-        {/* TAB 5: MY INDUCTION APPLICATIONS */}
+        {/* TAB 5: APPLICATIONS (students only) */}
         {activeTab === 'applications' && user.role === 'student' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.25rem', color: 'var(--text-cream)' }}>
                   Submitted Induction Applications
                 </h3>
-                <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                   Track screening status of your submitted applications across campus clubs.
                 </p>
               </div>
-              <Link to="/my-applications" className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.84rem' }}>
-                Full Applications Hub <ArrowRight size={14} />
+              <Link to="/my-applications" className="btn-pixel-outline" style={{ padding: '7px 14px', fontSize: '0.8rem' }}>
+                Full Applications Hub <ArrowRight size={13} />
               </Link>
             </div>
 
             {applications.length === 0 ? (
-              <div className="glass-panel" style={{ padding: '60px 24px', textAlign: 'center' }}>
-                <FileText size={42} color="var(--text-light)" style={{ marginBottom: '14px' }} />
-                <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>No Induction Applications Yet</h4>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '6px', marginBottom: '24px', maxWidth: '480px', margin: '6px auto 24px auto' }}>
+              <div className="pixel-panel pixel-corner-mark" style={{ padding: '56px 24px', textAlign: 'center' }}>
+                <FileText size={40} color="var(--text-dim)" style={{ marginBottom: '14px' }} />
+                <h4 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.05rem', color: 'var(--text-cream)', marginBottom: '6px' }}>
+                  No Induction Applications Yet
+                </h4>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', maxWidth: '480px', margin: '0 auto 22px auto' }}>
                   Browse active clubs with open recruitment drives and apply today.
                 </p>
-                <Link to="/clubs" className="btn btn-primary" style={{ padding: '10px 24px' }}>
+                <Link to="/clubs" className="btn-pixel-gold" style={{ padding: '9px 20px', fontSize: '0.88rem' }}>
                   Browse Open Clubs
                 </Link>
               </div>
@@ -707,29 +731,23 @@ export const Profile = () => {
                 {applications.map((app) => {
                   const stStyle = getStatusBadgeStyle(app.status);
                   return (
-                    <div key={app.id} className="glass-panel apple-box-hover" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-                          <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)' }}>{app.club_name}</h4>
-                          <span style={{
-                            padding: '3px 10px',
-                            borderRadius: '999px',
-                            fontSize: '0.74rem',
-                            fontWeight: 700,
-                            backgroundColor: stStyle.bg,
-                            color: stStyle.text,
-                            border: `1px solid ${stStyle.border}`
-                          }}>
-                            {app.status}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                          Submitted on {new Date(app.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </div>
+                    <div key={app.id} className="pixel-card" style={{ padding: '22px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <h4 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1rem', color: 'var(--text-cream)' }}>{app.club_name}</h4>
+                        <span className="badge-pixel" style={{
+                          backgroundColor: stStyle.bg,
+                          color: stStyle.text,
+                          border: `1px solid ${stStyle.border}`
+                        }}>
+                          {app.status}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        Submitted on {new Date(app.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
 
-                      <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid rgba(226, 232, 240, 0.7)' }}>
-                        <Link to={`/clubs/${app.club_slug}`} className="btn btn-secondary" style={{ width: '100%', padding: '8px', textAlign: 'center', fontSize: '0.82rem' }}>
+                      <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
+                        <Link to={`/clubs/${app.club_slug}`} className="btn-pixel-outline" style={{ width: '100%', padding: '7px', justifyContent: 'center', fontSize: '0.8rem' }}>
                           View Club Details
                         </Link>
                       </div>

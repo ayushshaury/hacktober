@@ -312,11 +312,35 @@ const verifiedClubs = [
     ml_keywords: 'sports, athletics, physical fitness, games, inter-branch tournaments, football, cricket, volleyball, SPARDHA, PRATIDWANDA',
     website_url: 'https://www.bitsindri.ac.in/sports-club/',
     recruitment_open: 0
+  },
+  {
+    club_code: 'BIT-028',
+    name: 'National Service Scheme (NSS)',
+    slug: 'nss',
+    category: 'Social Service & Community Welfare',
+    short_description: 'NSS unit of BIT Sindri promoting community service, social awareness and volunteerism among students.',
+    description: 'The National Service Scheme (NSS) unit of BIT Sindri engages students in community service through cleanliness drives, health and blood donation camps, tree plantation and awareness campaigns under the motto "Not Me But You".',
+    events_summary: 'Community Service Drives; Blood Donation Camps; Cleanliness Campaigns; Tree Plantation; Awareness Programmes',
+    ml_keywords: 'NSS, national service scheme, social service, volunteering, community service, blood donation, cleanliness drive, tree plantation, awareness, citizen service',
+    website_url: null,
+    recruitment_open: 1
+  },
+  {
+    club_code: 'BIT-029',
+    name: 'Robotics Club',
+    slug: 'robotics-club',
+    category: 'Technical – Robotics, Electronics & Automation',
+    short_description: 'Student technical club building robots, drones and automated systems through hands-on workshops and competitions.',
+    description: 'Robotics Club brings together students passionate about robotics, embedded systems and automation to design, build and program robots for inter-college competitions and campus showcases.',
+    events_summary: 'Robot Building Workshops; Drone Demonstrations; Line Follower & Robo Soccer Challenges; Automation Projects',
+    ml_keywords: 'robotics, robots, drones, automation, embedded systems, microcontrollers, Arduino, sensors, electronics, mechatronics, robo soccer',
+    website_url: null,
+    recruitment_open: 1
   }
 ];
 
 export async function seedClubs() {
-  console.log('Seeding verified 26 BIT Sindri Clubs into database...');
+  console.log('Seeding verified 28 BIT Sindri Clubs into database...');
   const db = await getDb();
 
   for (const club of verifiedClubs) {

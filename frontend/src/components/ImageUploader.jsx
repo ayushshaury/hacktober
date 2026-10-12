@@ -130,28 +130,27 @@ export function ImageUploader({
           {label}
         </label>
         
-        {/* Apple style toggle buttons */}
-        <div style={{ 
-          display: 'flex', 
-          background: 'rgba(241, 245, 249, 0.9)', 
-          borderRadius: '999px', 
-          padding: '2px',
-          border: '1px solid rgba(226, 232, 240, 0.8)'
+        {/* Mode toggle */}
+        <div style={{
+          display: 'flex',
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border-card)',
+          padding: '2px'
         }}>
           <button
             type="button"
             onClick={() => setMode('file')}
             style={{
               border: 'none',
-              background: mode === 'file' ? '#FFFFFF' : 'transparent',
-              color: mode === 'file' ? 'var(--color-primary)' : 'var(--text-muted)',
-              boxShadow: mode === 'file' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-              borderRadius: '999px',
+              background: mode === 'file' ? 'var(--color-gold)' : 'transparent',
+              color: mode === 'file' ? 'var(--text-dark)' : 'var(--text-muted)',
               padding: '3px 10px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              cursor: 'pointer'
             }}
           >
             File Upload
@@ -161,15 +160,15 @@ export function ImageUploader({
             onClick={() => setMode('url')}
             style={{
               border: 'none',
-              background: mode === 'url' ? '#FFFFFF' : 'transparent',
-              color: mode === 'url' ? 'var(--color-primary)' : 'var(--text-muted)',
-              boxShadow: mode === 'url' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-              borderRadius: '999px',
+              background: mode === 'url' ? 'var(--color-gold)' : 'transparent',
+              color: mode === 'url' ? 'var(--text-dark)' : 'var(--text-muted)',
               padding: '3px 10px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              cursor: 'pointer'
             }}
           >
             Image Link
@@ -184,15 +183,13 @@ export function ImageUploader({
           onDragLeave={handleDragLeave}
           onClick={() => !uploading && fileInputRef.current?.click()}
           style={{
-            border: dragOver 
-              ? '2px dashed var(--color-secondary)' 
-              : '1.5px dashed rgba(203, 213, 225, 0.9)',
-            borderRadius: '16px',
+            border: dragOver
+              ? '2px dashed var(--color-gold)'
+              : '1.5px dashed var(--border-card)',
             padding: aspectRatio === 'square' ? '16px' : '24px',
-            background: dragOver ? 'rgba(239, 246, 255, 0.6)' : 'rgba(248, 250, 252, 0.6)',
-            backdropFilter: 'blur(8px)',
+            background: dragOver ? 'rgba(243, 208, 99, 0.06)' : 'var(--bg-input)',
             cursor: uploading ? 'wait' : 'pointer',
-            transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            transition: 'all 0.15s ease',
             display: 'flex',
             flexDirection: aspectRatio === 'square' ? 'row' : 'column',
             alignItems: 'center',
@@ -200,7 +197,6 @@ export function ImageUploader({
             position: 'relative',
             overflow: 'hidden'
           }}
-          className="apple-box-hover"
         >
           <input
             type="file"
@@ -219,9 +215,7 @@ export function ImageUploader({
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                  border: '1px solid rgba(226, 232, 240, 0.8)'
+                  border: '1px solid var(--border-card)'
                 }}
                 onError={(e) => {
                   e.target.src = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&auto=format&fit=crop&q=80';
@@ -235,18 +229,16 @@ export function ImageUploader({
                   position: 'absolute',
                   top: '-6px',
                   right: '-6px',
-                  background: '#EF4444',
-                  color: '#FFFFFF',
-                  border: '2px solid #FFFFFF',
-                  borderRadius: '50%',
+                  background: 'var(--color-coral)',
+                  color: 'var(--text-dark)',
+                  border: '2px solid var(--bg-input)',
                   width: '24px',
                   height: '24px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-                  transition: 'transform 0.2s ease'
+                  transition: 'transform 0.15s ease'
                 }}
                 onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -261,12 +253,10 @@ export function ImageUploader({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(255, 255, 255, 0.9)',
-              borderRadius: '12px',
-              border: '1px solid rgba(226, 232, 240, 0.8)',
-              color: 'var(--color-secondary)',
-              flexShrink: 0,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-card)',
+              color: 'var(--text-dim)',
+              flexShrink: 0
             }}>
               {uploading ? (
                 <Loader2 size={26} className="spin text-secondary" />
@@ -278,25 +268,25 @@ export function ImageUploader({
 
           <div style={{ flex: 1, minWidth: 0 }}>
             {uploading ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-secondary)', fontWeight: 600, fontSize: '0.9rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-gold)', fontWeight: 600, fontSize: '0.88rem', fontFamily: 'var(--font-mono)' }}>
                 <Loader2 size={16} className="spin" />
                 <span>Uploading picture to server...</span>
               </div>
             ) : displaySrc ? (
               <div>
-                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-main)', fontSize: '0.88rem' }}>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-cream)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}>
                   Picture uploaded successfully
                 </p>
-                <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                <p style={{ margin: '3px 0 0', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                   Click to replace or choose another picture
                 </p>
               </div>
             ) : (
               <div>
-                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-main)', fontSize: '0.88rem' }}>
-                  <span style={{ color: 'var(--color-secondary)' }}>Click to upload</span> or drag and drop
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-cream)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ color: 'var(--color-gold)' }}>Click to upload</span> or drag and drop
                 </p>
-                <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                <p style={{ margin: '4px 0 0', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                   {helperText}
                 </p>
               </div>

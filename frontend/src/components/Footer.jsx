@@ -25,7 +25,7 @@ export const Footer = () => {
               </span>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', lineHeight: '1.6', maxWidth: '480px' }}>
-              Centralized retro platform for 26 verified student clubs, events management, induction portals, and AI-powered recommendations at Birsa Institute of Technology, Sindri.
+              Centralized retro platform for 28 verified student clubs, events management, induction portals, and AI-powered recommendations at Birsa Institute of Technology, Sindri.
             </p>
           </div>
 
@@ -76,7 +76,7 @@ export const Footer = () => {
             © {new Date().getFullYear()} BIT SINDRI CLUBS PORTAL • BUILT FOR STUDENTS
           </div>
           <div style={{ color: 'var(--border-gold-dim)' }}>
-            [ 26 VERIFIED CLUBS • 100% INSTITUTE SECURED ]
+            [ 28 VERIFIED CLUBS • 100% INSTITUTE SECURED ]
           </div>
         </div>
       </div>
