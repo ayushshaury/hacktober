@@ -55,9 +55,9 @@ export const ClubDetail = () => {
 
   return (
     <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px' }}>
-      
+
       <div className="container" style={{ paddingTop: '36px' }}>
-        
+
         {/* Breadcrumb (Exact match to Panel 3) */}
         <div style={{
           display: 'flex',
@@ -88,7 +88,7 @@ export const ClubDetail = () => {
             boxShadow: '0 0 20px rgba(194, 166, 73, 0.1)'
           }}
         >
-          
+
           {/* Left: Pixel Art Icon Box with Golden Corner Accents */}
           <div style={{
             width: '120px',
@@ -217,7 +217,7 @@ export const ClubDetail = () => {
           gap: '16px',
           marginBottom: '28px'
         }}>
-          
+
           {/* Box 1: Members */}
           <div className="pixel-corner-mark" style={{
             backgroundColor: '#0c141c',
