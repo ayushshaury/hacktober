@@ -727,6 +727,17 @@ export const AdminDashboard = () => {
     }
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'TBD';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px' }} className="animate-fade-in">
       
@@ -851,13 +862,13 @@ export const AdminDashboard = () => {
             { id: 'overview', label: 'OVERVIEW', icon: LayoutDashboard },
             { id: 'members', label: `MEMBERS (${data.stats?.members ?? members.length ?? 0})`, icon: Users },
             { id: 'applicants', label: `APPLICANTS (${data.stats?.applications || 0})`, icon: UserCheck },
+            ...(data?.slug === 'hncc' || user?.club_slug === 'hncc' || user?.email?.includes('hncc') ? [{ id: 'ai-ranking', label: '★ AI SHORTLISTING', icon: Sparkles }] : []),
             { id: 'admins', label: `ADMINS (${admins.filter(a => a.club_id === activeClubId).length})`, icon: ShieldCheck },
             { id: 'profile', label: 'CLUB PROFILE', icon: Edit3 },
             { id: 'form-builder', label: 'FORM BUILDER', icon: FileSpreadsheet },
             { id: 'events', label: `EVENTS (${data.events?.length || 0})`, icon: Calendar },
             { id: 'social', label: 'SOCIAL LINKS', icon: LinkIcon },
-            { id: 'announcements', label: 'ANNOUNCEMENTS', icon: Megaphone },
-            ...(data?.slug === 'hncc' || user?.club_slug === 'hncc' || user?.email?.includes('hncc') ? [{ id: 'ai-ranking', label: '★ AI SHORTLISTING', icon: Sparkles }] : [])
+            { id: 'announcements', label: 'ANNOUNCEMENTS', icon: Megaphone }
           ].map(tab => {
             const IconComponent = tab.icon;
             const isSel = activeTab === tab.id;
@@ -1322,6 +1333,13 @@ export const AdminDashboard = () => {
           </div>
         )}
 
+        {/* TAB: AI CANDIDATE RANKING (HnCC) */}
+        {activeTab === 'ai-ranking' && (
+          <div style={{ marginTop: '16px' }}>
+            <HnccCandidateRanking />
+          </div>
+        )}
+
         {/* TAB 5: EDIT PROFILE WITH PICTURE UPLOAD */}
         {activeTab === 'profile' && (
           <div className="pixel-card pixel-corner-mark" style={{ padding: '36px', maxWidth: '780px' }}>
@@ -1741,13 +1759,6 @@ export const AdminDashboard = () => {
               <textarea className="pixel-input" rows={4} placeholder="Announcement Content..." value={annContent} onChange={e => setAnnContent(e.target.value)} required />
               <button type="submit" className="btn-pixel-gold" style={{ width: 'fit-content', padding: '11px 26px' }}><Megaphone size={16} /> Publish Announcement</button>
             </form>
-          </div>
-        )}
-
-        {/* TAB: AI CANDIDATE RANKING (HnCC) */}
-        {activeTab === 'ai-ranking' && (
-          <div style={{ marginTop: '16px' }}>
-            <HnccCandidateRanking />
           </div>
         )}
 
