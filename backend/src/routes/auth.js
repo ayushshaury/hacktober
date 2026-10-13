@@ -10,7 +10,76 @@ dotenv.config();
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default_secret';
 
-// Login (club admins only)
+// POST /api/auth/register - Register a new student account
+router.post('/register', async (req, res) => {
+  const { email, password, department, roll_number, batch_year, phone } = req.body;
+  const name = req.body.name || req.body.full_name;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Full name is required' });
+  }
+
+  if (!email || !email.trim()) {
+    return res.status(400).json({ error: 'Email address is required' });
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(normalizedEmail)) {
+    return res.status(400).json({ error: 'Please enter a valid email address' });
+  }
+
+  if (!password || password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  }
+
+  try {
+    const db = await getDb();
+    const existing = await db.get('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
+    if (existing) {
+      return res.status(409).json({ error: 'An account with this email already exists. Please sign in.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db.run(
+      `INSERT INTO users (name, email, password_hash, role, department, roll_number, batch_year, phone)
+       VALUES (?, ?, ?, 'student', ?, ?, ?, ?)`,
+      [
+        name.trim(),
+        normalizedEmail,
+        hashedPassword,
+        department ? department.trim() : null,
+        roll_number ? roll_number.trim() : null,
+        batch_year ? batch_year.trim() : null,
+        phone ? phone.trim() : null
+      ]
+    );
+
+    const user = await db.get(
+      'SELECT id, name, email, role, phone, avatar_url, department, roll_number, batch_year, bio, linkedin_url, github_url, created_at FROM users WHERE email = ?',
+      [normalizedEmail]
+    );
+
+    const token = jwt.sign({ id: user.id, role: 'student' }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.status(201).json({
+      message: 'Student account registered successfully',
+      token,
+      user: {
+        ...user,
+        club_id: null,
+        club_name: null,
+        club_slug: null,
+        clubs: []
+      }
+    });
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Failed to register student account' });
+  }
+});
+
+// Login (club admins & students)
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -31,22 +100,25 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    if (user.role !== 'club_admin') {
-      return res.status(403).json({ error: 'Only club admin accounts can log in.' });
+    let clubs = [];
+    let club_id = null;
+    let club_name = null;
+    let club_slug = null;
+
+    if (user.role === 'club_admin' || user.role === 'super_admin') {
+      clubs = await db.all(
+        `SELECT ca.club_id, c.name as club_name, c.slug as club_slug
+         FROM club_admins ca
+         LEFT JOIN clubs c ON ca.club_id = c.id
+         WHERE ca.user_id = ?
+         ORDER BY ca.id ASC`,
+        [user.id]
+      );
+
+      club_id = clubs[0] ? clubs[0].club_id : null;
+      club_name = clubs[0] ? clubs[0].club_name : null;
+      club_slug = clubs[0] ? clubs[0].club_slug : null;
     }
-
-    const clubs = await db.all(
-      `SELECT ca.club_id, c.name as club_name, c.slug as club_slug
-       FROM club_admins ca
-       LEFT JOIN clubs c ON ca.club_id = c.id
-       WHERE ca.user_id = ?
-       ORDER BY ca.id ASC`,
-      [user.id]
-    );
-
-    const club_id = clubs[0] ? clubs[0].club_id : null;
-    const club_name = clubs[0] ? clubs[0].club_name : null;
-    const club_slug = clubs[0] ? clubs[0].club_slug : null;
 
     const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 

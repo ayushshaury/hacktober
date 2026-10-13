@@ -46,7 +46,7 @@ function AppRoutes() {
           <Route 
             path="/my-applications" 
             element={
-              <ProtectedRoute allowedRoles={['club_admin']}>
+              <ProtectedRoute allowedRoles={['club_admin', 'student']}>
                 <MyApplications />
               </ProtectedRoute>
             } 
@@ -54,7 +54,7 @@ function AppRoutes() {
           <Route 
             path="/profile" 
             element={
-              <ProtectedRoute allowedRoles={['club_admin']}>
+              <ProtectedRoute allowedRoles={['club_admin', 'student']}>
                 <Profile />
               </ProtectedRoute>
             } 

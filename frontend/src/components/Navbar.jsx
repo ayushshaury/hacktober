@@ -147,6 +147,16 @@ export const Navbar = () => {
                 </Link>
               )}
 
+              {user.role === 'student' && (
+                <Link
+                  to="/my-applications"
+                  className="btn-pixel-outline"
+                  style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                >
+                  MY APPS
+                </Link>
+              )}
+
               {/* User Profile */}
               <Link
                 to="/profile"
