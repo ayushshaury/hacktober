@@ -10,7 +10,7 @@ export const ClubsPlaceholder = () => {
         </div>
         <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '8px' }}>Club Directory</h2>
         <p style={{ color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto 20px auto' }}>
-          Foundation Phase 1 active. Verified club directory dataset (26 clubs: HnCC, Model Club, IETE, ISTE, IEEE, SAE, MES, ACE, SME, EES, ECE, PIE, Quimica, Dhatvika, Sarjana, IIC (Institution Innovation Council), Arts Club, Eco Club, GRS, LEOs, LitSoc, Photo Club, Painting Wing, Prayaas, Rotaract, Sports Club) will be populated in Phase 2.
+          Foundation Phase 1 active. Verified club directory dataset (28 clubs: HnCC, Model Club, IETE, ISTE, IEEE, SAE, MES, ACE, SME, EES, ECE, PIE, Quimica, Dhatvika, Sarjana, IIC (Institution Innovation Council), Arts Club, Eco Club, GRS, LEOs, LitSoc, Photo Club, Painting Wing, Prayaas, Rotaract, Sports Club, NSS, Robotics Club) will be populated in Phase 2.
         </p>
         <span style={{ fontSize: '0.82rem', padding: '4px 12px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '20px', fontWeight: 600 }}>
           Phase 1 Foundation Operational

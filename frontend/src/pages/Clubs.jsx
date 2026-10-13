@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Compass } from 'lucide-react';
-import { PixelIcon } from '../components/PixelIcon';
+import { useSearchParams } from 'react-router-dom';
+import { Search } from 'lucide-react';
+import { ClubCard } from '../components/ClubCard';
+import { getCategoryDisplayTag } from '../data/clubs';
 
 export const Clubs = () => {
   const [searchParams] = useSearchParams();
@@ -25,26 +26,6 @@ export const Clubs = () => {
       .catch(err => console.error('Error fetching clubs:', err))
       .finally(() => setLoading(false));
   }, []);
-
-  const getCategoryClass = (cat) => {
-    const c = (cat || '').toLowerCase();
-    if (c.includes('tech') || c.includes('code') || c.includes('robot')) return 'tech';
-    if (c.includes('cultur') || c.includes('music') || c.includes('drama')) return 'cultural';
-    if (c.includes('science') || c.includes('astro')) return 'science';
-    if (c.includes('lit') || c.includes('debate')) return 'literary';
-    if (c.includes('sport')) return 'sports';
-    return 'others';
-  };
-
-  const getCategoryDisplayTag = (cat) => {
-    const c = (cat || '').toUpperCase();
-    if (c.includes('TECH') || c.includes('CODE') || c.includes('ROBOT')) return 'TECH';
-    if (c.includes('CULTUR') || c.includes('MUSIC') || c.includes('DRAMA')) return 'CULTURAL';
-    if (c.includes('SCIENCE') || c.includes('ASTRO')) return 'SCIENCE';
-    if (c.includes('LIT') || c.includes('DEBATE')) return 'LITERARY';
-    if (c.includes('SPORT')) return 'SPORTS';
-    return 'OTHERS';
-  };
 
   // Filter logic
   const filteredClubs = clubs.filter(club => {
@@ -211,82 +192,9 @@ export const Clubs = () => {
             gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
             gap: '20px'
           }}>
-            {filteredClubs.map(club => {
-              const catClass = getCategoryClass(club.category);
-              const tagText = getCategoryDisplayTag(club.category);
-              const membersCount = club.member_count || (80 + ((club.id * 7) % 65));
-
-              return (
-                <Link
-                  key={club.id}
-                  to={`/clubs/${club.slug}`}
-                  className="pixel-card"
-                  style={{ textDecoration: 'none' }}
-                >
-                  {/* Square Pixel Art Illustration Container with Corner Mark */}
-                  <div className="pixel-card-icon-frame pixel-corner-mark">
-                    <PixelIcon name={club.slug || club.category} size={54} />
-
-                    {club.recruitment_open === 1 && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '8px',
-                        right: '8px',
-                        backgroundColor: 'var(--color-gold)',
-                        color: 'var(--text-dark)',
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.64rem',
-                        fontWeight: 800,
-                        padding: '2px 6px',
-                        letterSpacing: '0.04em',
-                        boxShadow: '1px 1px 0px #8a7329'
-                      }}>
-                        OPEN
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Club Title with clean 2-line clamping */}
-                  <h3 style={{
-                    fontFamily: 'var(--font-pixel)',
-                    fontSize: '1.08rem',
-                    color: 'var(--text-cream)',
-                    marginBottom: '8px',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    minHeight: '2.7rem',
-                    lineHeight: 1.25
-                  }}>
-                    {club.name}
-                  </h3>
-
-                  {/* Category Badge */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <span className={`badge-pixel ${catClass}`}>
-                      {tagText}
-                    </span>
-                  </div>
-
-                  {/* Card Bottom Row: Member Count & Arrow */}
-                  <div style={{
-                    marginTop: 'auto',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderTop: '1px solid var(--border-subtle)',
-                    paddingTop: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.78rem',
-                    color: 'var(--text-muted)'
-                  }}>
-                    <span>{membersCount} members</span>
-                    <span style={{ color: 'var(--color-gold)', fontSize: '1rem', fontWeight: 700 }}>→</span>
-                  </div>
-                </Link>
-              );
-            })}
+            {filteredClubs.map(club => (
+              <ClubCard key={club.id} club={club} />
+            ))}
           </div>
         )}
 

@@ -287,6 +287,12 @@ a {
   border-color: var(--border-gold-dim);
 }
 
+.pixel-card-logo {
+  object-fit: cover;
+  image-rendering: auto;
+  display: block;
+}
+
 .pixel-box {
   background-color: var(--bg-panel);
   border: 1px solid var(--border-card);
@@ -401,6 +407,57 @@ a {
 
 .pixel-input::placeholder {
   color: var(--text-dim);
+}
+
+.pixel-input:disabled,
+.pixel-input[disabled] {
+  background-color: #0a1016;
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+select.pixel-input {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% - 3px), calc(100% - 11px) calc(50% - 3px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+}
+
+select.pixel-input option {
+  background-color: var(--bg-card);
+  color: var(--text-cream);
+}
+
+textarea.pixel-input {
+  resize: vertical;
+  min-height: 72px;
+}
+
+/* Form helpers (used by Profile, Admin, Induction forms) */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Dark content panel (replaces light glass-panel look) */
+.pixel-panel {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sharp);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 /* Scanline and Stars Effect */

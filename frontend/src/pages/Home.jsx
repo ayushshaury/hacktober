@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { PixelIcon } from '../components/PixelIcon';
-import { Play, Users, FileText, Calendar, ShieldCheck, ArrowRight, Sparkles } from 'lucide-react';
-import heroCampusImg from '../assets/hero_campus_pixel.jpg';
+import { Link } from 'react-router-dom';
+import { ClubCard } from '../components/ClubCard';
+import { Play, Users, FileText, Calendar, ShieldCheck, Sparkles } from 'lucide-react';
+import adminDashboardImg from '../assets/admin_dashboard.jpeg';
 
 export const Home = () => {
   const [clubs, setClubs] = useState([]);
   const [recruitingClubs, setRecruitingClubs] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
-  const [totalClubsCount, setTotalClubsCount] = useState(26);
+  const [totalClubsCount, setTotalClubsCount] = useState(28);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     Promise.all([
@@ -26,23 +25,6 @@ export const Home = () => {
     });
   }, []);
 
-  const getCategoryClass = (cat) => {
-    const c = (cat || '').toLowerCase();
-    if (c.includes('tech') || c.includes('code') || c.includes('robot')) return 'tech';
-    if (c.includes('cultur') || c.includes('music') || c.includes('drama')) return 'cultural';
-    if (c.includes('science') || c.includes('astro')) return 'science';
-    if (c.includes('lit') || c.includes('debate')) return 'literary';
-    if (c.includes('sport')) return 'sports';
-    return 'others';
-  };
-
-  const getEventBadgeClass = (category) => {
-    const c = (category || '').toLowerCase();
-    if (c.includes('hack')) return 'cultural'; // Coral
-    if (c.includes('work')) return 'others';   // Mint
-    return 'tech';                            // Blue
-  };
-
   return (
     <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '60px' }}>
       
@@ -57,13 +39,13 @@ export const Home = () => {
         backgroundColor: '#090E13'
       }}>
         
-        {/* Pixel Art Campus Background Image */}
+        {/* Admin Dashboard Background Image */}
         <div style={{
           position: 'absolute',
           inset: 0,
-          backgroundImage: `url(${heroCampusImg})`,
+          backgroundImage: `url(${adminDashboardImg})`,
           backgroundSize: 'cover',
-          backgroundPosition: 'center bottom',
+          backgroundPosition: 'center center',
           imageRendering: 'pixelated',
           opacity: 0.88,
           zIndex: 1
@@ -285,78 +267,9 @@ export const Home = () => {
           gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
           gap: '20px'
         }}>
-          {clubs.slice(0, 8).map(club => {
-            const catClass = getCategoryClass(club.category);
-            return (
-              <Link
-                key={club.id}
-                to={`/clubs/${club.slug}`}
-                className="pixel-card"
-                style={{ textDecoration: 'none' }}
-              >
-                {/* Pixel Art Illustration Box with Corner Mark */}
-                <div className="pixel-card-icon-frame pixel-corner-mark">
-                  <PixelIcon name={club.slug || club.category} size={54} />
-                  {club.recruitment_open === 1 && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '8px',
-                      right: '8px',
-                      backgroundColor: 'var(--color-gold)',
-                      color: 'var(--text-dark)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.64rem',
-                      fontWeight: 800,
-                      padding: '2px 6px',
-                      letterSpacing: '0.04em',
-                      boxShadow: '1px 1px 0px #8a7329'
-                    }}>
-                      OPEN
-                    </div>
-                  )}
-                </div>
-
-                {/* Club Name with 2-line clamp */}
-                <h3 style={{
-                  fontFamily: 'var(--font-pixel)',
-                  fontSize: '1.05rem',
-                  color: 'var(--text-cream)',
-                  marginBottom: '8px',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                  minHeight: '2.6rem',
-                  lineHeight: 1.25
-                }}>
-                  {club.name}
-                </h3>
-
-                {/* Category Tag */}
-                <div style={{ marginBottom: '14px' }}>
-                  <span className={`badge-pixel ${catClass}`}>
-                    {club.category?.split(' ')[0] || 'TECH'}
-                  </span>
-                </div>
-
-                {/* Card Footer: Members count & arrow */}
-                <div style={{
-                  marginTop: 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  borderTop: '1px solid var(--border-subtle)',
-                  paddingTop: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.78rem',
-                  color: 'var(--text-muted)'
-                }}>
-                  <span>{club.member_count ? `${club.member_count} members` : '85 members'}</span>
-                  <span style={{ color: 'var(--color-gold)', fontSize: '1rem', fontWeight: 700 }}>→</span>
-                </div>
-              </Link>
-            );
-          })}
+          {clubs.slice(0, 8).map(club => (
+            <ClubCard key={club.id} club={club} />
+          ))}
         </div>
       </section>
 

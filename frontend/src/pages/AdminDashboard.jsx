@@ -400,7 +400,7 @@ export const AdminDashboard = () => {
 
     try {
       const optionsList = newOptionsStr.split(',').map(s => s.trim()).filter(Boolean);
-      const res = await apiFetch('/api/induction/admin/questions', {
+      const res = await apiFetch('/api/induction/admin/question', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -425,7 +425,7 @@ export const AdminDashboard = () => {
 
   const handleDeleteQuestion = async (qId) => {
     try {
-      const res = await apiFetch(`/api/induction/admin/questions/${qId}`, {
+      const res = await apiFetch(`/api/induction/admin/question/${qId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
