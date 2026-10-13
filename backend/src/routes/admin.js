@@ -756,6 +756,24 @@ function canAccessHnccModel(user) {
   return false;
 }
 
+function hashPhoneNumber(phone) {
+  if (!phone || String(phone).trim() === 'N/A' || String(phone).trim() === 'nan') return 'N/A';
+  let clean = String(phone).trim();
+  let prefix = '';
+  if (clean.startsWith('+91')) {
+    prefix = '+91 ';
+    clean = clean.slice(3).trim();
+  } else if (clean.startsWith('+')) {
+    prefix = clean.slice(0, 3) + ' ';
+    clean = clean.slice(3).trim();
+  }
+  const digits = clean.replace(/\D/g, '');
+  if (digits.length >= 4) {
+    return prefix + '*'.repeat(Math.max(6, digits.length - 4)) + digits.slice(-4);
+  }
+  return prefix + '******';
+}
+
 /**
  * POST /api/admin/hncc/candidate-ranking
  * Evaluates and ranks candidates across CP / DSA, Web Development, and AI / ML
@@ -799,10 +817,14 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
       });
     }
 
+    const viewerEmail = (req.user?.email || '').toLowerCase().trim();
+    const isMasterAdmin = viewerEmail === 'hncc.admin@bitsindri.ac.in';
+
     // IF an uploaded CSV file is provided, compute dynamically using the custom CSV
+    // (Phone numbers are NEVER hashed for custom user CSV input)
     if (uploadedFilePath) {
       const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
-      execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--csv_path', uploadedFilePath], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+      execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--csv_path', uploadedFilePath, '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
         cleanupFile();
         if (err) {
           console.error('Python execution error on custom CSV:', err, stderr);
@@ -836,6 +858,7 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
         if (data.domains && data.domains[domain]) {
           const candidates = data.domains[domain].slice(0, count).map((c, i) => ({
             ...c,
+            phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number,
             rank: i + 1
           }));
           return res.json({
@@ -854,20 +877,24 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
 
     // Fallback: execute python model script directly on default dataset
     const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
-    execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString()], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         console.error('Python execution error:', err, stderr);
         return res.status(500).json({ error: 'Failed to run AI ranking model on server.' });
       }
       try {
         const result = JSON.parse(stdout);
+        const candidates = (result.candidates || []).map(c => ({
+          ...c,
+          phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number
+        }));
         return res.json({
           status: 'success',
           domain,
           top_n: count,
           total_available: result.total_available,
           custom_source: false,
-          candidates: result.candidates
+          candidates
         });
       } catch (parseErr) {
         console.error('Failed to parse Python script output:', stdout, parseErr);
@@ -893,6 +920,8 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
 
     const domain = req.query.domain || 'Web Development';
     const top_n = parseInt(req.query.top_n || '10', 10);
+    const viewerEmail = (req.user?.email || '').toLowerCase().trim();
+    const isMasterAdmin = viewerEmail === 'hncc.admin@bitsindri.ac.in';
 
     const cachePath = path.resolve(process.cwd(), 'src/data/hncc_ranked_cache.json');
     if (fs.existsSync(cachePath)) {
@@ -902,6 +931,7 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
         if (data.domains && data.domains[domain]) {
           const candidates = data.domains[domain].slice(0, top_n).map((c, i) => ({
             ...c,
+            phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number,
             rank: i + 1
           }));
           return res.json({
@@ -918,19 +948,23 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
     }
 
     const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
-    execFile('python', [scriptPath, '--domain', domain, '--top_n', top_n.toString()], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile('python', [scriptPath, '--domain', domain, '--top_n', top_n.toString(), '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         console.error('Python execution error:', err, stderr);
         return res.status(500).json({ error: 'Failed to run AI ranking model.' });
       }
       try {
         const result = JSON.parse(stdout);
+        const candidates = (result.candidates || []).map(c => ({
+          ...c,
+          phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number
+        }));
         return res.json({
           status: 'success',
           domain,
           top_n,
           total_available: result.total_available,
-          candidates: result.candidates
+          candidates
         });
       } catch (parseErr) {
         console.error('Parse error:', stdout, parseErr);

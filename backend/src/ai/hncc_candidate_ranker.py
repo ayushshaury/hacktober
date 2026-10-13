@@ -273,7 +273,26 @@ def generate_and_cache_all_rankings():
         json.dump(cache_data, f, indent=2, ensure_ascii=False)
     return cache_data
 
-def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = None) -> Dict[str, Any]:
+def hash_phone_number(phone: str) -> str:
+    """Hashes/masks phone number for non-master admins on seeded data (e.g. 8409374177 -> ******4177)."""
+    if not phone or str(phone).strip() in ("N/A", "nan", ""):
+        return "N/A"
+    clean = str(phone).strip()
+    prefix = ""
+    if clean.startswith("+91"):
+        prefix = "+91 "
+        clean = clean[3:].strip()
+    elif clean.startswith("+"):
+        prefix = clean[:3] + " "
+        clean = clean[3:].strip()
+    
+    digits = "".join(ch for ch in clean if ch.isdigit())
+    if len(digits) >= 4:
+        masked_digits = ("*" * max(6, len(digits) - 4)) + digits[-4:]
+        return f"{prefix}{masked_digits}"
+    return f"{prefix}******"
+
+def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = None, admin_email: Optional[str] = None) -> Dict[str, Any]:
     if domain not in TRACKS:
         raise ValueError(f"Invalid domain '{domain}'. Choose from: {list(TRACKS.keys())}")
     if top_n < 1:
@@ -281,7 +300,9 @@ def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = Non
     if top_n > 500:
         top_n = 500
 
-    # If custom CSV provided, compute directly from that CSV
+    is_master_admin = (admin_email or "").strip().lower() == "hncc.admin@bitsindri.ac.in"
+
+    # If custom CSV provided, compute directly from that CSV (Phone numbers are NEVER hashed for custom user CSVs)
     if csv_path and os.path.exists(csv_path):
         candidates = parse_candidates_from_csv(csv_path)
         model = ClubShortlistingModel()
@@ -294,16 +315,19 @@ def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = Non
             "candidates": results
         }
 
-    # Otherwise check cache first for instant response
+    # Otherwise check cache first for instant response (Seeded official data)
     if os.path.exists(CACHE_JSON_PATH):
         try:
             with open(CACHE_JSON_PATH, "r", encoding="utf-8") as f:
                 cache_data = json.load(f)
             if domain in cache_data.get("domains", {}):
                 all_domain_candidates = cache_data["domains"][domain]
-                sliced = all_domain_candidates[:top_n]
+                sliced = [dict(c) for c in all_domain_candidates[:top_n]]
                 for rank, row in enumerate(sliced, 1):
                     row["rank"] = rank
+                    # Hash phone number for non-master admins on seeded data
+                    if not is_master_admin:
+                        row["phone_number"] = hash_phone_number(row.get("phone_number", "N/A"))
                 return {
                     "domain": domain,
                     "top_n": top_n,
@@ -318,6 +342,12 @@ def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = Non
     candidates = parse_candidates_from_csv()
     model = ClubShortlistingModel()
     results = model.shortlist(candidates, domain, top_n=top_n)
+    
+    # Hash phone number for non-master admins on seeded data
+    if not is_master_admin:
+        for r in results:
+            r["phone_number"] = hash_phone_number(r.get("phone_number", "N/A"))
+
     return {
         "domain": domain,
         "top_n": top_n,
@@ -331,6 +361,7 @@ def main():
     parser.add_argument("--domain", type=str, default="Web Development", help="CP / DSA, Web Development, or AI / ML")
     parser.add_argument("--top_n", type=int, default=10, help="Number of top candidates (1-500)")
     parser.add_argument("--csv_path", type=str, default=None, help="Optional path to custom candidate CSV")
+    parser.add_argument("--admin_email", type=str, default=None, help="Email of requesting administrator")
     parser.add_argument("--build-cache", action="store_true", help="Precompute and cache all domains")
     args = parser.parse_args()
 
@@ -339,7 +370,7 @@ def main():
         print(json.dumps({"status": "success", "cached_domains": list(data["domains"].keys())}))
         return
 
-    result = get_ranked_candidates(args.domain, args.top_n, csv_path=args.csv_path)
+    result = get_ranked_candidates(args.domain, args.top_n, csv_path=args.csv_path, admin_email=args.admin_email)
     print(json.dumps(result, ensure_ascii=False))
 
 if __name__ == "__main__":
