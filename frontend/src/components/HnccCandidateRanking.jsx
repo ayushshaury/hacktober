@@ -21,7 +21,7 @@ export const HnccCandidateRanking = () => {
     (user.role === 'club_admin' && (user.club_slug === 'hncc' || user.club_id === 1 || user.email?.includes('hncc')))
   );
 
-  // Only hncc.admin@bitsindri.ac.in is permitted to view unhashed phone numbers on seeded data
+  // Only hncc.admin@bitsindri.ac.in is permitted to view unmasked candidate names and raw phone numbers on seeded data
   const isMasterAdmin = (user?.email || '').toLowerCase().trim() === 'hncc.admin@bitsindri.ac.in';
 
   const handleFileChange = (e) => {
@@ -454,16 +454,16 @@ export const HnccCandidateRanking = () => {
                 </span>
               )}
               {results.custom_source ? (
-                <span className="badge-pixel mint" title="Custom CSV input: phone numbers are unhashed as provided">
-                  RAW CSV PHONE NUMBERS
+                <span className="badge-pixel mint" title="Custom CSV input: candidate names and phone numbers are unmasked as provided">
+                  RAW CSV CANDIDATE DATA
                 </span>
               ) : isMasterAdmin ? (
-                <span className="badge-pixel mint" title="Full phone numbers unlocked for master administrator (hncc.admin@bitsindri.ac.in)">
-                  PHONE UNHASHED (MASTER ADMIN)
+                <span className="badge-pixel mint" title="Full names & phone numbers unlocked for master administrator (hncc.admin@bitsindri.ac.in)">
+                  FULL DATA UNMASKED (MASTER ADMIN)
                 </span>
               ) : (
-                <span className="badge-pixel coral" title="Phone numbers hashed for privacy. Only hncc.admin@bitsindri.ac.in can view raw numbers.">
-                  PHONE HASHED (PROTECTED)
+                <span className="badge-pixel coral" title="Candidate names masked to initials (e.g. AK) and phone numbers hashed for privacy. Only hncc.admin@bitsindri.ac.in can view raw details.">
+                  NAME INITIALS & PHONE HASHED (PROTECTED)
                 </span>
               )}
               <span className="badge-pixel gold">
@@ -537,6 +537,21 @@ export const HnccCandidateRanking = () => {
                         gap: '8px'
                       }}>
                         {c.candidate_name}
+                        {!results.custom_source && !isMasterAdmin && (
+                          <span 
+                            style={{ 
+                              fontSize: '0.62rem', 
+                              padding: '1px 5px', 
+                              backgroundColor: 'rgba(243, 208, 99, 0.1)', 
+                              border: '1px solid rgba(243, 208, 99, 0.3)', 
+                              color: 'var(--color-gold)',
+                              letterSpacing: '0.05em'
+                            }}
+                            title="Candidate name masked to initials for non-master club admins on seeded data"
+                          >
+                            INITIALS
+                          </span>
+                        )}
                         {c.rank === 1 && (
                           <span style={{ fontSize: '0.66rem', padding: '1px 6px', backgroundColor: 'var(--color-gold)', color: 'var(--text-dark)', fontWeight: 800 }}>
                             TOP MATCH

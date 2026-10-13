@@ -774,6 +774,14 @@ function hashPhoneNumber(phone) {
   return prefix + '******';
 }
 
+function maskCandidateName(name) {
+  if (!name || String(name).trim() === 'N/A' || String(name).trim() === 'nan' || String(name).trim() === 'Anonymous') return 'Anonymous';
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'Anonymous';
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return `${parts[0][0].toUpperCase()}${parts[parts.length - 1][0].toUpperCase()}`;
+}
+
 /**
  * POST /api/admin/hncc/candidate-ranking
  * Evaluates and ranks candidates across CP / DSA, Web Development, and AI / ML
@@ -858,6 +866,7 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
         if (data.domains && data.domains[domain]) {
           const candidates = data.domains[domain].slice(0, count).map((c, i) => ({
             ...c,
+            candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
             phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number,
             rank: i + 1
           }));
@@ -886,6 +895,7 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
         const result = JSON.parse(stdout);
         const candidates = (result.candidates || []).map(c => ({
           ...c,
+          candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
           phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number
         }));
         return res.json({
@@ -931,6 +941,7 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
         if (data.domains && data.domains[domain]) {
           const candidates = data.domains[domain].slice(0, top_n).map((c, i) => ({
             ...c,
+            candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
             phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number,
             rank: i + 1
           }));
@@ -957,6 +968,7 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
         const result = JSON.parse(stdout);
         const candidates = (result.candidates || []).map(c => ({
           ...c,
+          candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
           phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number
         }));
         return res.json({

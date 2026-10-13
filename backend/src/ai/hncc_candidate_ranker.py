@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-HnCC AI Candidate Shortlisting & Recommendation Model
-Integrates the official sentence-transformers MiniLM model and HNCC 2k26 induction dataset.
-
-Preserves:
-- sentence-transformers/all-MiniLM-L6-v2 embedding model
-- 80% skills (70% semantic + 20% keywords + 10% languages) + 20% communication rating (1-5 scaled to 100)
-- CP / DSA, Web Development, and AI / ML domains with exact track definitions
-- Display-only metadata (name, phone, branch) not passed into model
-"""
 
 from __future__ import annotations
 import os
@@ -107,7 +97,7 @@ class ClubShortlistingModel:
             raise ValueError("top_n must be an integer between 1 and 500")
         
         candidates_list = list(candidates)
-        # Use batch encoding for skills to achieve 50x speedup while preserving exact math
+        
         track = TRACKS[domain]
         all_skills = [_clean(c.get("skills_text", "")) for c in candidates_list]
         non_empty_indices = [i for i, s in enumerate(all_skills) if s]
@@ -174,7 +164,7 @@ def parse_candidates_from_csv(csv_path: str = CSV_PATH) -> List[Dict[str, Any]]:
     df = pd.read_csv(csv_path)
     df.columns = [str(c).strip() for c in df.columns]
 
-    # Find Communication column
+    
     comm_col = "How do you rate yourself in your Communication Skills ?"
     if comm_col not in df.columns:
         for c in df.columns:
@@ -185,9 +175,7 @@ def parse_candidates_from_csv(csv_path: str = CSV_PATH) -> List[Dict[str, Any]]:
     if comm_col in df.columns:
         df["comm_numeric"] = pd.to_numeric(df[comm_col], errors="coerce")
     else:
-        df["comm_numeric"] = 3.0  # Default neutral score if column absent
-
-    # Find Programming Language / Skills columns
+        df["comm_numeric"] = 3.0  
     lang_col = "Which Programming Language do you know ?"
     if lang_col not in df.columns:
         for c in df.columns:
@@ -273,6 +261,17 @@ def generate_and_cache_all_rankings():
         json.dump(cache_data, f, indent=2, ensure_ascii=False)
     return cache_data
 
+def mask_candidate_name(name: str) -> str:
+    """Masks candidate name to first letter of name + first letter of surname (e.g. Ayush Kumar -> AK)."""
+    if not name or str(name).strip() in ("N/A", "nan", "Anonymous", ""):
+        return "Anonymous"
+    parts = [p.strip() for p in str(name).strip().split() if p.strip()]
+    if not parts:
+        return "Anonymous"
+    if len(parts) == 1:
+        return parts[0][0].upper()
+    return f"{parts[0][0].upper()}{parts[-1][0].upper()}"
+
 def hash_phone_number(phone: str) -> str:
     """Hashes/masks phone number for non-master admins on seeded data (e.g. 8409374177 -> ******4177)."""
     if not phone or str(phone).strip() in ("N/A", "nan", ""):
@@ -302,7 +301,7 @@ def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = Non
 
     is_master_admin = (admin_email or "").strip().lower() == "hncc.admin@bitsindri.ac.in"
 
-    # If custom CSV provided, compute directly from that CSV (Phone numbers are NEVER hashed for custom user CSVs)
+    # If custom CSV provided, compute directly from that CSV (Neither names nor phone numbers are masked for custom user CSVs)
     if csv_path and os.path.exists(csv_path):
         candidates = parse_candidates_from_csv(csv_path)
         model = ClubShortlistingModel()
@@ -325,9 +324,10 @@ def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = Non
                 sliced = [dict(c) for c in all_domain_candidates[:top_n]]
                 for rank, row in enumerate(sliced, 1):
                     row["rank"] = rank
-                    # Hash phone number for non-master admins on seeded data
+                    # Hash phone number and mask name to initials (e.g. Ayush Kumar -> AK) for non-master admins on seeded data
                     if not is_master_admin:
                         row["phone_number"] = hash_phone_number(row.get("phone_number", "N/A"))
+                        row["candidate_name"] = mask_candidate_name(row.get("candidate_name", ""))
                 return {
                     "domain": domain,
                     "top_n": top_n,
@@ -343,10 +343,11 @@ def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = Non
     model = ClubShortlistingModel()
     results = model.shortlist(candidates, domain, top_n=top_n)
     
-    # Hash phone number for non-master admins on seeded data
+    # Hash phone number and mask name to initials for non-master admins on seeded data
     if not is_master_admin:
         for r in results:
             r["phone_number"] = hash_phone_number(r.get("phone_number", "N/A"))
+            r["candidate_name"] = mask_candidate_name(r.get("candidate_name", ""))
 
     return {
         "domain": domain,
