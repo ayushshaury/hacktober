@@ -99,6 +99,21 @@ export const AdminDashboard = () => {
   const [eventRegUrl, setEventRegUrl] = useState('');
   const [eventImageUrl, setEventImageUrl] = useState('');
 
+  // Event edit and management state
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [showEventEditModal, setShowEventEditModal] = useState(false);
+  const [eventEditForm, setEventEditForm] = useState({
+    title: '',
+    description: '',
+    event_date: '',
+    start_time: '',
+    end_time: '',
+    venue: '',
+    registration_url: '',
+    image_url: '',
+    status: 'Published'
+  });
+
   const fetchAdminData = async () => {
     setLoading(true);
     try {
@@ -572,10 +587,76 @@ export const AdminDashboard = () => {
         setEventVenue('BIT Sindri Campus');
         setEventRegUrl('');
         setEventImageUrl('');
+        setMsg('New event published successfully!');
         fetchAdminData();
+      } else {
+        const errJson = await res.json();
+        setError(errJson.error || 'Failed to create event');
       }
     } catch (err) {
       console.error('Error creating event:', err);
+      setError('Error creating event: ' + err.message);
+    }
+  };
+
+  const handleOpenEditEvent = (ev) => {
+    setEditingEvent(ev);
+    setEventEditForm({
+      title: ev.title || '',
+      description: ev.description || '',
+      event_date: ev.event_date ? ev.event_date.split('T')[0] : '',
+      start_time: ev.start_time || '',
+      end_time: ev.end_time || '',
+      venue: ev.venue || 'BIT Sindri Campus',
+      registration_url: ev.registration_url || '',
+      image_url: ev.image_url || '',
+      status: ev.status || 'Published'
+    });
+    setShowEventEditModal(true);
+  };
+
+  const handleUpdateEvent = async (e) => {
+    e.preventDefault();
+    if (!editingEvent) return;
+    setActionLoading(true);
+    try {
+      const res = await apiFetch(`/api/events/${editingEvent.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(eventEditForm)
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to update event');
+      setMsg('Event updated successfully!');
+      setShowEventEditModal(false);
+      setEditingEvent(null);
+      fetchAdminData();
+    } catch (err) {
+      setError(err.message || 'Error updating event');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId, eventTitle) => {
+    if (!window.confirm(`Are you sure you want to delete event "${eventTitle}"? This action cannot be undone.`)) return;
+    setActionLoading(true);
+    try {
+      const res = await apiFetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to delete event');
+      setMsg('Event removed successfully');
+      fetchAdminData();
+    } catch (err) {
+      setError(err.message || 'Error deleting event');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1459,9 +1540,131 @@ export const AdminDashboard = () => {
           </div>
         )}
 
-        {/* TAB 7: EVENTS WITH PICTURE UPLOAD */}
+        {/* TAB 7: EVENTS MANAGEMENT & PICTURE UPLOAD */}
         {activeTab === 'events' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            
+            {/* Existing Club Events Roster */}
+            <div className="pixel-card pixel-corner-mark" style={{ padding: '32px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+                <div>
+                  <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.35rem', color: 'var(--color-gold)', letterSpacing: '0.04em' }}>
+                    CLUB EVENTS & WORKSHOPS ROSTER
+                  </h3>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Manage and edit active campus events published by {data.name}. Edited events update across the public events portal immediately.
+                  </p>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.84rem', color: 'var(--color-gold)', backgroundColor: '#070c10', padding: '6px 14px', border: '1px solid var(--border-gold-dim)' }}>
+                  {data.events?.length || 0} TOTAL EVENTS
+                </div>
+              </div>
+
+              {(!data.events || data.events.length === 0) ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', backgroundColor: '#080d12', border: '1px solid var(--border-card)' }}>
+                  <Calendar size={32} style={{ color: 'var(--color-gold)', margin: '0 auto 12px auto' }} />
+                  <div style={{ fontFamily: 'var(--font-pixel)', color: 'var(--text-cream)', fontSize: '1.05rem' }}>NO EVENTS PUBLISHED YET</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Create your club's first hackathon, coding contest, or workshop using the form below.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto', border: '1px solid var(--border-card)' }}>
+                  <table className="retro-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '80px' }}>POSTER</th>
+                        <th style={{ width: '28%' }}>EVENT TITLE</th>
+                        <th style={{ width: '20%' }}>DATE & TIME</th>
+                        <th style={{ width: '20%' }}>VENUE</th>
+                        <th style={{ width: '12%' }}>STATUS</th>
+                        <th style={{ width: '20%', textAlign: 'right' }}>ACTIONS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.events.map(ev => (
+                        <tr key={ev.id}>
+                          <td>
+                            <div style={{ width: '64px', height: '42px', backgroundColor: '#070c10', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                              {ev.image_url ? (
+                                <img
+                                  src={ev.image_url.startsWith('/uploads') ? ev.image_url : ev.image_url}
+                                  alt={ev.title}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                                  <Calendar size={18} />
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700, color: 'var(--text-cream)', fontSize: '0.92rem' }}>{ev.title}</div>
+                            {ev.description && (
+                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>
+                                {ev.description}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ color: 'var(--color-gold)', fontWeight: 600 }}>{formatDate(ev.event_date)}</div>
+                            {(ev.start_time || ev.end_time) && (
+                              <div style={{ fontSize: '0.76rem', color: 'var(--color-cyan)', marginTop: '2px' }}>
+                                {ev.start_time || ''} {ev.end_time ? `- ${ev.end_time}` : ''}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ fontSize: '0.84rem', color: 'var(--text-cream)' }}>{ev.venue || 'BIT Sindri Campus'}</div>
+                          </td>
+                          <td>
+                            <span className={`badge-pixel ${ev.status === 'Registration Open' ? 'cultural' : 'tech'}`} style={{ fontSize: '0.7rem' }}>
+                              {ev.status || 'Published'}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditEvent(ev)}
+                                className="btn-pixel-gold"
+                                style={{ padding: '6px 12px', fontSize: '0.76rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                title="Edit this event"
+                              >
+                                <Pencil size={13} /> Edit
+                              </button>
+                              <a
+                                href={`/events/${ev.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn-pixel-outline"
+                                style={{ padding: '6px 10px', fontSize: '0.76rem', display: 'inline-flex', alignItems: 'center' }}
+                                title="View public event page"
+                              >
+                                <ExternalLink size={13} />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteEvent(ev.id, ev.title)}
+                                className="btn-pixel-outline"
+                                style={{ padding: '6px 10px', color: 'var(--color-coral)', borderColor: 'rgba(240, 113, 103, 0.4)' }}
+                                title="Delete this event"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Create Event Section */}
             <div className="pixel-card pixel-corner-mark" style={{ padding: '32px' }}>
               <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.35rem', color: 'var(--color-gold)', marginBottom: '20px', letterSpacing: '0.04em' }}>
                 CREATE NEW CAMPUS EVENT
@@ -1478,16 +1681,16 @@ export const AdminDashboard = () => {
                 />
 
                 <div className="form-group">
-                  <label className="form-label">Event Title</label>
+                  <label className="form-label">Event Title *</label>
                   <input type="text" className="pixel-input" placeholder="e.g. Hackatron 4.0" value={eventTitle} onChange={e => setEventTitle(e.target.value)} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Description</label>
-                  <textarea className="pixel-input" rows={3} value={eventDesc} onChange={e => setEventDesc(e.target.value)} required />
+                  <textarea className="pixel-input" rows={3} placeholder="Event description, rules, eligibility, prizes..." value={eventDesc} onChange={e => setEventDesc(e.target.value)} required />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                   <div className="form-group">
-                    <label className="form-label">Event Date</label>
+                    <label className="form-label">Event Date *</label>
                     <input type="date" className="pixel-input" value={eventDate} onChange={e => setEventDate(e.target.value)} required />
                   </div>
                   <div className="form-group">
@@ -1801,6 +2004,177 @@ export const AdminDashboard = () => {
                   style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   {actionLoading ? 'Saving...' : editingMember ? 'Update Member' : 'Add Member to Roster'}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT EVENT MODAL */}
+      {showEventEditModal && editingEvent && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 260,
+          padding: '24px'
+        }}>
+          <div className="pixel-card pixel-corner-mark" style={{
+            maxWidth: '680px',
+            width: '100%',
+            padding: '32px',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.4rem', color: 'var(--color-gold)', letterSpacing: '0.04em' }}>
+                  EDIT EVENT: {editingEvent.title}
+                </h3>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Update details, venue, dates, or registration links for this campus event.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowEventEditModal(false); setEditingEvent(null); }}
+                className="btn-pixel-outline"
+                style={{ padding: '6px 12px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateEvent} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              
+              {/* Event Poster / Flyer */}
+              <ImageUploader
+                value={eventEditForm.image_url}
+                onChange={(url) => setEventEditForm(prev => ({ ...prev, image_url: url }))}
+                label="Event Poster / Picture Banner"
+                helperText="Upload event flyer or poster (16:9 recommended, PNG, JPG, WebP)"
+                aspectRatio="video"
+              />
+
+              <div className="form-group">
+                <label className="form-label">Event Title *</label>
+                <input
+                  type="text"
+                  className="pixel-input"
+                  value={eventEditForm.title}
+                  onChange={e => setEventEditForm(prev => ({ ...prev, title: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <textarea
+                  className="pixel-input"
+                  rows={3}
+                  value={eventEditForm.description}
+                  onChange={e => setEventEditForm(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Event Date *</label>
+                  <input
+                    type="date"
+                    className="pixel-input"
+                    value={eventEditForm.event_date}
+                    onChange={e => setEventEditForm(prev => ({ ...prev, event_date: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select
+                    className="pixel-input"
+                    value={eventEditForm.status}
+                    onChange={e => setEventEditForm(prev => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="Published">Published</option>
+                    <option value="Registration Open">Registration Open</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Start Time</label>
+                  <input
+                    type="text"
+                    className="pixel-input"
+                    placeholder="e.g. 09:00 AM"
+                    value={eventEditForm.start_time}
+                    onChange={e => setEventEditForm(prev => ({ ...prev, start_time: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">End Time</label>
+                  <input
+                    type="text"
+                    className="pixel-input"
+                    placeholder="e.g. 05:00 PM"
+                    value={eventEditForm.end_time}
+                    onChange={e => setEventEditForm(prev => ({ ...prev, end_time: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Venue</label>
+                <input
+                  type="text"
+                  className="pixel-input"
+                  value={eventEditForm.venue}
+                  onChange={e => setEventEditForm(prev => ({ ...prev, venue: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Registration / Portal URL</label>
+                <input
+                  type="url"
+                  className="pixel-input"
+                  placeholder="https://..."
+                  value={eventEditForm.registration_url}
+                  onChange={e => setEventEditForm(prev => ({ ...prev, registration_url: e.target.value }))}
+                />
+              </div>
+
+              {/* Form Action Buttons */}
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowEventEditModal(false); setEditingEvent(null); }}
+                  className="btn-pixel-outline"
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-pixel-gold"
+                  disabled={actionLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {actionLoading ? 'Saving Changes...' : 'Save & Update Event'}
                 </button>
               </div>
 
