@@ -1,8 +1,39 @@
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { execFile } from 'child_process';
+import multer from 'multer';
 import { getDb } from '../db/db.js';
 import { authenticateToken, requireRole, enforceClubIsolation, resolveClubId } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Multer storage for custom candidate CSV uploads
+const uploadCsvDir = path.resolve(process.cwd(), 'uploads/csv');
+if (!fs.existsSync(uploadCsvDir)) {
+  fs.mkdirSync(uploadCsvDir, { recursive: true });
+}
+
+const csvStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadCsvDir),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, `candidates-${uniqueSuffix}.csv`);
+  }
+});
+
+const uploadCsv = multer({
+  storage: csvStorage,
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.originalname.toLowerCase().endsWith('.csv') || file.mimetype.includes('csv') || file.mimetype === 'text/plain') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .csv files are supported.'));
+    }
+  }
+});
+
 
 // GET /api/admin/my-club - Fetch assigned club data, stats, social links, announcements, & events
 router.get('/my-club', authenticateToken, requireRole('club_admin'), async (req, res) => {
@@ -707,6 +738,208 @@ router.delete('/admins/:userId', authenticateToken, requireRole('club_admin'), a
   } catch (err) {
     console.error('Error removing club admin:', err);
     res.status(500).json({ error: 'Failed to remove club admin' });
+  }
+});
+
+// ==========================================
+// HnCC AI CANDIDATE RANKING & EVALUATION
+// ==========================================
+
+function canAccessHnccModel(user) {
+  if (!user) return false;
+  if (user.role === 'super_admin') return true;
+  if (user.role === 'club_admin') {
+    if (user.club_slug === 'hncc') return true;
+    if (user.clubs && user.clubs.some((c) => c.club_slug === 'hncc')) return true;
+    if (user.email && user.email.toLowerCase().includes('hncc')) return true;
+  }
+  return false;
+}
+
+/**
+ * POST /api/admin/hncc/candidate-ranking
+ * Evaluates and ranks candidates across CP / DSA, Web Development, and AI / ML
+ * Supports precomputed cache or dynamic custom CSV evaluation via Python MiniLM model.
+ */
+router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_file'), async (req, res) => {
+  let uploadedFilePath = req.file ? req.file.path : null;
+  const cleanupFile = () => {
+    if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+      try {
+        fs.unlinkSync(uploadedFilePath);
+      } catch (err) {
+        console.error('Failed to remove temp uploaded file:', err);
+      }
+    }
+  };
+
+  try {
+    if (!canAccessHnccModel(req.user)) {
+      cleanupFile();
+      return res.status(403).json({
+        error: 'Access restricted. Only authorized HnCC administrators can access the AI candidate ranking model.'
+      });
+    }
+
+    const { domain, top_n } = req.body;
+    const validDomains = ['CP / DSA', 'Web Development', 'AI / ML'];
+
+    if (!domain || !validDomains.includes(domain)) {
+      cleanupFile();
+      return res.status(400).json({
+        error: `Please select a valid domain from: ${validDomains.join(', ')}`
+      });
+    }
+
+    const count = parseInt(top_n, 10);
+    if (isNaN(count) || count < 1 || count > 500) {
+      cleanupFile();
+      return res.status(400).json({
+        error: 'Please enter a valid candidate count between 1 and 500.'
+      });
+    }
+
+    // IF an uploaded CSV file is provided, compute dynamically using the custom CSV
+    if (uploadedFilePath) {
+      const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
+      execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--csv_path', uploadedFilePath], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+        cleanupFile();
+        if (err) {
+          console.error('Python execution error on custom CSV:', err, stderr);
+          return res.status(500).json({ error: 'Failed to process uploaded CSV with AI ranking model. Please verify CSV format.' });
+        }
+        try {
+          const result = JSON.parse(stdout);
+          return res.json({
+            status: 'success',
+            domain,
+            top_n: count,
+            total_available: result.total_available,
+            custom_source: true,
+            source_filename: req.file.originalname,
+            candidates: result.candidates
+          });
+        } catch (parseErr) {
+          console.error('Failed to parse Python script output on custom CSV:', stdout, parseErr);
+          return res.status(500).json({ error: 'Invalid response from AI ranking model.' });
+        }
+      });
+      return;
+    }
+
+    // Otherwise, check precomputed cache first for instant sub-20ms response on default dataset
+    const cachePath = path.resolve(process.cwd(), 'src/data/hncc_ranked_cache.json');
+    if (fs.existsSync(cachePath)) {
+      try {
+        const raw = fs.readFileSync(cachePath, 'utf8');
+        const data = JSON.parse(raw);
+        if (data.domains && data.domains[domain]) {
+          const candidates = data.domains[domain].slice(0, count).map((c, i) => ({
+            ...c,
+            rank: i + 1
+          }));
+          return res.json({
+            status: 'success',
+            domain,
+            top_n: count,
+            total_available: data.domains[domain].length,
+            custom_source: false,
+            candidates
+          });
+        }
+      } catch (cacheErr) {
+        console.error('Error reading HnCC cache, falling back to python script:', cacheErr);
+      }
+    }
+
+    // Fallback: execute python model script directly on default dataset
+    const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
+    execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString()], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        console.error('Python execution error:', err, stderr);
+        return res.status(500).json({ error: 'Failed to run AI ranking model on server.' });
+      }
+      try {
+        const result = JSON.parse(stdout);
+        return res.json({
+          status: 'success',
+          domain,
+          top_n: count,
+          total_available: result.total_available,
+          custom_source: false,
+          candidates: result.candidates
+        });
+      } catch (parseErr) {
+        console.error('Failed to parse Python script output:', stdout, parseErr);
+        return res.status(500).json({ error: 'Invalid response from AI ranking model.' });
+      }
+    });
+
+  } catch (err) {
+    cleanupFile();
+    console.error('Error in /api/admin/hncc/candidate-ranking:', err);
+    res.status(500).json({ error: 'Server error processing candidate ranking.' });
+  }
+});
+
+// Alias GET /api/admin/hncc-rankings for quick data retrieval
+router.get('/hncc-rankings', authenticateToken, async (req, res) => {
+  try {
+    if (!canAccessHnccModel(req.user)) {
+      return res.status(403).json({
+        error: 'Access restricted to authorized HnCC administrators.'
+      });
+    }
+
+    const domain = req.query.domain || 'Web Development';
+    const top_n = parseInt(req.query.top_n || '10', 10);
+
+    const cachePath = path.resolve(process.cwd(), 'src/data/hncc_ranked_cache.json');
+    if (fs.existsSync(cachePath)) {
+      try {
+        const raw = fs.readFileSync(cachePath, 'utf8');
+        const data = JSON.parse(raw);
+        if (data.domains && data.domains[domain]) {
+          const candidates = data.domains[domain].slice(0, top_n).map((c, i) => ({
+            ...c,
+            rank: i + 1
+          }));
+          return res.json({
+            status: 'success',
+            domain,
+            top_n,
+            total_available: data.domains[domain].length,
+            candidates
+          });
+        }
+      } catch (cacheErr) {
+        console.error('Error reading HnCC cache:', cacheErr);
+      }
+    }
+
+    const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
+    execFile('python', [scriptPath, '--domain', domain, '--top_n', top_n.toString()], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        console.error('Python execution error:', err, stderr);
+        return res.status(500).json({ error: 'Failed to run AI ranking model.' });
+      }
+      try {
+        const result = JSON.parse(stdout);
+        return res.json({
+          status: 'success',
+          domain,
+          top_n,
+          total_available: result.total_available,
+          candidates: result.candidates
+        });
+      } catch (parseErr) {
+        console.error('Parse error:', stdout, parseErr);
+        return res.status(500).json({ error: 'Invalid response from model.' });
+      }
+    });
+  } catch (err) {
+    console.error('Error in /api/admin/hncc-rankings:', err);
+    res.status(500).json({ error: 'Server error retrieving rankings.' });
   }
 });
 

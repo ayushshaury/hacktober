@@ -44,3 +44,10 @@ pnpm-debug.log*
 # Embedded PGlite database
 .pglite-data/
 backend/.pglite-data/
+
+# AI candidate evaluation data & cache
+backend/src/data/*.csv
+backend/src/data/*.json
+!backend/src/data/.gitkeep
+uploads/csv/
+backend/uploads/csv/
