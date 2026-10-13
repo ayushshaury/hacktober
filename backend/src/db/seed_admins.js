@@ -8,6 +8,7 @@ const DEFAULT_PASSWORD = 'password123';
 const ADMINS = [
   { name: 'rahul', email: 'rahul@example.com', club: 'hncc' },
   { name: 'sneha', email: 'sneha@example.com', club: 'hncc' },
+  { name: 'HnCC Admin', email: 'hncc.admin@bitsindri.ac.in', club: 'hncc' },
   { name: 'aman', email: 'aman@example.com', club: 'iste-students-chapter' },
   { name: 'priyanka', email: 'priyanka@example.com', club: 'ieee-bit-sindri' }
 ];
