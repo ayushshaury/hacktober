@@ -1,0 +1,83 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import authRoutes from './routes/auth.js';
+import clubsRoutes from './routes/clubs.js';
+import eventsRoutes from './routes/events.js';
+import adminRoutes from './routes/admin.js';
+import inductionRoutes from './routes/induction.js';
+import recommendationsRoutes from './routes/recommendations.js';
+import uploadRoutes from './routes/upload.js';
+import { getDb, hasDatabaseUrl } from './db/db.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load env from backend/.env (local dev) then cwd/.env (Vercel / repo root)
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+const app = express();
+
+// Middleware
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+
+// Static uploads directory serving (local dev only, no-op on Vercel)
+const uploadsDir = path.resolve(process.cwd(), 'uploads');
+if (fs.existsSync(uploadsDir)) {
+  app.use('/uploads', express.static(uploadsDir));
+}
+
+// Health Check API
+app.get('/api/health', async (req, res) => {
+  try {
+    const db = await getDb();
+    await db.get('SELECT 1');
+    res.json({
+      status: 'ok',
+      service: 'BIT Sindri Clubs Dashboard API',
+      database: 'connected',
+      host: process.env.VERCEL ? 'vercel' : 'local',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      service: 'BIT Sindri Clubs Dashboard API',
+      database: 'disconnected',
+      hint: hasDatabaseUrl
+        ? 'Connection failed - check DATABASE_URL / SSL / IP allowlist in Supabase.'
+        : 'DATABASE_URL is not set in this environment (Vercel -> Settings -> Environment Variables).',
+      message: err.message
+    });
+  }
+});
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/clubs', clubsRoutes);
+app.use('/api/events', eventsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/induction', inductionRoutes);
+app.use('/api/recommendations', recommendationsRoutes);
+app.use('/api/upload', uploadRoutes);
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled Server Error:', err);
+  res.status(500).json({ error: 'Internal Server Error' });
+});
+
+export default app;
