@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, Key, Mail, AlertCircle, CheckCircle, UserPlus, BookOpen, GraduationCap, Phone } from 'lucide-react';
@@ -39,8 +39,14 @@ export const Login = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login, register } = useAuth();
+  const { user, login, register } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -49,12 +55,8 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      const loggedUser = await login(email, password);
-      if (loggedUser.role === 'club_admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/profile');
-      }
+      await login(email, password);
+      navigate('/');
     } catch (err) {
       setError(err.message || 'Login failed. Please verify your credentials.');
     } finally {
@@ -91,7 +93,7 @@ export const Login = () => {
       });
       setSuccessMsg('Student account created successfully! Entering portal...');
       setTimeout(() => {
-        navigate('/clubs');
+        navigate('/');
       }, 1000);
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
