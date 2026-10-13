@@ -1,9 +1,11 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { PGlite } from '@electric-sql/pglite';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import pg from 'pg';
+
+const { Pool, types } = pg;
+// Parse int8 (BIGINT, COUNT(*) in Postgres) as Javascript number
+types.setTypeParser(types.builtins.INT8, (val) => (val === null ? null : parseInt(val, 10)));
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -11,20 +13,50 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const RAW_DATABASE_URL =
+  process.env.DATABASE_URL ||
+  process.env.SUPABASE_DB_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRESQL_URL ||
+  '';
+
+export const hasDatabaseUrl = Boolean(RAW_DATABASE_URL);
+
+const DATABASE_URL = RAW_DATABASE_URL
+  .replace(/([?&])(pgbouncer|connection_limit|prepareThreshold|prepared_statement_cache)=([^&]*)/g, '$1')
+  .replace(/\?&/, '?')
+  .replace(/[?&]$/, '');
+
 const dataDir = process.env.PGLITE_DIR || path.resolve(__dirname, '../../.pglite-data');
 
 let pglitePromise = null;
+let pgPool = null;
 
 async function getPGlite() {
   if (!pglitePromise) {
     pglitePromise = (async () => {
-      const db = new PGlite(dataDir);
-      await db.waitReady;
-      return db;
+      try {
+        const { PGlite } = await import('@electric-sql/pglite');
+        const db = new PGlite(dataDir);
+        await db.waitReady;
+        return db;
+      } catch (err) {
+        console.error('[db] Error loading @electric-sql/pglite. Please ensure dependencies are installed via `npm install` in backend.');
+        throw err;
+      }
     })();
   }
   return pglitePromise;
+}
+
+function getPool() {
+  if (!pgPool) {
+    pgPool = new Pool({
+      connectionString: DATABASE_URL,
+      ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false }
+    });
+  }
+  return pgPool;
 }
 
 /**
@@ -54,23 +86,33 @@ export function convertPlaceholders(sql) {
 }
 
 /**
- * Compatibility wrapper mimicking SQLite helper methods with PGlite (embedded PostgreSQL)
+ * Universal Database Wrapper supporting both Supabase/PostgreSQL (when DATABASE_URL is provided)
+ * and PGlite embedded database (for instant zero-config local development).
  */
 export const dbWrapper = {
   async get(sql, params = []) {
+    if (hasDatabaseUrl) {
+      const pool = getPool();
+      const res = await pool.query(convertPlaceholders(sql), params || []);
+      return res.rows[0];
+    }
     const db = await getPGlite();
     const res = await db.query(convertPlaceholders(sql), params || []);
     return res.rows[0] !== undefined ? res.rows[0] : undefined;
   },
 
   async all(sql, params = []) {
+    if (hasDatabaseUrl) {
+      const pool = getPool();
+      const res = await pool.query(convertPlaceholders(sql), params || []);
+      return res.rows || [];
+    }
     const db = await getPGlite();
     const res = await db.query(convertPlaceholders(sql), params || []);
     return res.rows || [];
   },
 
   async run(sql, params = []) {
-    const db = await getPGlite();
     let cleanSql = sql.trim();
     const isInsert = /^\s*insert\s+into\s+/i.test(cleanSql);
     const hasReturning = /\breturning\b/i.test(cleanSql);
@@ -86,6 +128,30 @@ export const dbWrapper = {
       tryReturningId = true;
     }
 
+    if (hasDatabaseUrl) {
+      const pool = getPool();
+      try {
+        const res = await pool.query(convertPlaceholders(executeSql), params || []);
+        const lastID = res.rows && res.rows[0] && res.rows[0].id !== undefined ? res.rows[0].id : undefined;
+        return {
+          lastID,
+          changes: res.rowCount ?? 0,
+          rowCount: res.rowCount ?? 0
+        };
+      } catch (err) {
+        if (tryReturningId && err.message && err.message.includes('id')) {
+          const res = await pool.query(convertPlaceholders(cleanSql), params || []);
+          return {
+            lastID: undefined,
+            changes: res.rowCount ?? 0,
+            rowCount: res.rowCount ?? 0
+          };
+        }
+        throw err;
+      }
+    }
+
+    const db = await getPGlite();
     try {
       const res = await db.query(convertPlaceholders(executeSql), params || []);
       const lastID = res.rows && res.rows[0] && res.rows[0].id !== undefined ? res.rows[0].id : undefined;
@@ -108,11 +174,19 @@ export const dbWrapper = {
   },
 
   async exec(sql) {
+    if (hasDatabaseUrl) {
+      const pool = getPool();
+      return await pool.query(sql);
+    }
     const db = await getPGlite();
     return await db.exec(sql);
   },
 
   async query(sql, params = []) {
+    if (hasDatabaseUrl) {
+      const pool = getPool();
+      return await pool.query(convertPlaceholders(sql), params || []);
+    }
     const db = await getPGlite();
     return await db.query(convertPlaceholders(sql), params || []);
   }

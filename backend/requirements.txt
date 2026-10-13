@@ -1,0 +1,5 @@
+# Optional dependencies for running local AI ranking model evaluation
+sentence-transformers>=2.2.2
+torch>=2.0.0
+numpy>=1.24.0
+pandas>=2.0.0
