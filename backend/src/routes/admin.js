@@ -617,8 +617,9 @@ router.get('/my-clubs', authenticateToken, requireRole('club_admin'), async (req
 router.get('/admins', authenticateToken, requireRole('club_admin'), async (req, res) => {
   try {
     const db = await getDb();
+    const isMasterAdmin = (req.user?.email || '').toLowerCase().trim() === 'hncc.admin@bitsindri.ac.in';
     const admins = await db.all(
-      `SELECT u.id, u.name, u.email, u.created_at, ca.club_id, ca.created_at as assigned_at,
+      `SELECT u.id, u.name, u.email, u.phone, u.created_at, ca.club_id, ca.created_at as assigned_at,
               c.name as club_name, c.slug as club_slug
        FROM club_admins ca
        JOIN users u ON ca.user_id = u.id
@@ -627,7 +628,22 @@ router.get('/admins', authenticateToken, requireRole('club_admin'), async (req, 
        ORDER BY u.name ASC`,
       req.user.club_ids || []
     );
-    res.json({ count: admins.length, admins });
+
+    // Only hncc.admin@bitsindri.ac.in can see all details of other admins.
+    // Other admins can only see names of other admins, with emails and phones masked/hidden.
+    const sanitizedAdmins = admins.map(a => {
+      if (isMasterAdmin || a.id === req.user.id) {
+        return a;
+      }
+      return {
+        ...a,
+        email: 'Protected (Hidden)',
+        phone: null,
+        is_protected: true
+      };
+    });
+
+    res.json({ count: sanitizedAdmins.length, admins: sanitizedAdmins, isMasterAdmin });
   } catch (err) {
     console.error('Error fetching admins:', err);
     res.status(500).json({ error: 'Failed to retrieve admins' });
@@ -636,6 +652,13 @@ router.get('/admins', authenticateToken, requireRole('club_admin'), async (req, 
 
 // POST /api/admin/admins - Create (or link) a club admin for one of my clubs
 router.post('/admins', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  const isMasterAdmin = (req.user?.email || '').toLowerCase().trim() === 'hncc.admin@bitsindri.ac.in';
+  if (!isMasterAdmin) {
+    return res.status(403).json({
+      error: 'Forbidden: Only the master administrator (hncc.admin@bitsindri.ac.in) has authority to create or grant access to club admins.'
+    });
+  }
+
   const { name, email, password } = req.body;
   const rawClubId = req.body.club_id ?? req.query.club_id;
 
@@ -704,6 +727,13 @@ router.post('/admins', authenticateToken, requireRole('club_admin'), async (req,
 
 // DELETE /api/admin/admins/:userId - Remove an admin assignment from one of my clubs
 router.delete('/admins/:userId', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  const isMasterAdmin = (req.user?.email || '').toLowerCase().trim() === 'hncc.admin@bitsindri.ac.in';
+  if (!isMasterAdmin) {
+    return res.status(403).json({
+      error: 'Forbidden: Only the master administrator (hncc.admin@bitsindri.ac.in) has authority to remove club admins.'
+    });
+  }
+
   const userId = parseInt(req.params.userId);
   const rawClubId = req.body.club_id ?? req.query.club_id;
   const targetClubId = rawClubId ? parseInt(rawClubId) : (req.user.club_ids || [])[0];

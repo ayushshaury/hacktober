@@ -5,7 +5,7 @@ import {
   Plus, Trash2, CheckCircle2, ShieldCheck, Eye, Users, ToggleLeft, 
   ToggleRight, AlertCircle, FileSpreadsheet, UserCheck, Search, 
   Filter, ChevronDown, ChevronUp, EyeOff, Globe, Phone, Mail, 
-  UserPlus, Pencil, Award, ExternalLink, Sparkles
+  UserPlus, Pencil, Award, ExternalLink, Sparkles, Lock, ShieldAlert
 } from 'lucide-react';
 import { ImageUploader } from '../components/ImageUploader';
 import { HnccCandidateRanking } from '../components/HnccCandidateRanking';
@@ -19,6 +19,9 @@ export const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
+
+  // Master admin check: only hncc.admin@bitsindri.ac.in can add/remove admins and view full admin details
+  const isMasterAdmin = (user?.email || '').toLowerCase().trim() === 'hncc.admin@bitsindri.ac.in';
 
   // Multi-club admin: active club switcher
   const [myClubs, setMyClubs] = useState([]);
@@ -245,6 +248,10 @@ export const AdminDashboard = () => {
   const handleAddAdmin = async (e) => {
     e.preventDefault();
     setAdminMsg('');
+    if (!isMasterAdmin) {
+      setAdminMsg('Forbidden: Only hncc.admin@bitsindri.ac.in is authorized to grant admin access.');
+      return;
+    }
     try {
       const res = await apiFetch('/api/admin/admins', {
         method: 'POST',
@@ -267,6 +274,10 @@ export const AdminDashboard = () => {
   };
 
   const handleRemoveAdmin = async (userId) => {
+    if (!isMasterAdmin) {
+      alert('Forbidden: Only hncc.admin@bitsindri.ac.in is authorized to remove club admins.');
+      return;
+    }
     if (!window.confirm('Remove this admin access?')) return;
     try {
       const res = await apiFetch(`/api/admin/admins/${userId}`, {
@@ -1168,44 +1179,83 @@ export const AdminDashboard = () => {
               CLUB ADMINS
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', marginTop: '4px', marginBottom: '24px' }}>
-              Admins have full access to the club they are assigned to. You can grant admin access to other members here.
+              {isMasterAdmin 
+                ? 'Master Administrator Workspace: Grant or revoke admin access and manage administrative assignments across clubs.'
+                : 'View assigned administrators for this club. Only hncc.admin@bitsindri.ac.in is authorized to grant or remove admin access.'}
             </p>
 
-            <div className="pixel-card pixel-corner-mark" style={{ padding: '24px', marginBottom: '24px', maxWidth: '560px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '16px' }}>
-                [ GRANT ADMIN ACCESS ]
-              </div>
-              <form onSubmit={handleAddAdmin} style={{ display: 'grid', gap: '14px' }}>
-                <input
-                  type="text"
-                  className="pixel-input"
-                  placeholder="Full name (only for new admin)"
-                  value={adminForm.name}
-                  onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
-                />
-                <input
-                  type="email"
-                  className="pixel-input"
-                  placeholder="Email address"
-                  value={adminForm.email}
-                  onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
-                  required
-                />
-                <input
-                  type="password"
-                  className="pixel-input"
-                  placeholder="Password (only for new admin, min 6 chars)"
-                  value={adminForm.password}
-                  onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                />
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '4px' }}>
-                  <button type="submit" className="btn-pixel-gold" style={{ padding: '10px 22px', fontSize: '0.86rem' }}>
-                    <UserPlus size={15} /> Add Admin
-                  </button>
-                  {adminMsg && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-mint)' }}>{adminMsg}</span>}
+            {!isMasterAdmin ? (
+              <div 
+                className="pixel-card pixel-corner-mark" 
+                style={{ 
+                  padding: '18px 22px', 
+                  marginBottom: '24px', 
+                  maxWidth: '680px',
+                  backgroundColor: '#0c141c',
+                  border: '1px solid var(--border-card)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px'
+                }}
+              >
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  backgroundColor: '#070c10',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Lock size={18} color="var(--color-gold)" />
                 </div>
-              </form>
-            </div>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-gold)', letterSpacing: '0.04em' }}>
+                    ADMIN MANAGEMENT RESTRICTED
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
+                    Only master administrator (<strong style={{ color: 'var(--text-cream)' }}>hncc.admin@bitsindri.ac.in</strong>) can grant new admin access or remove admins. Other administrators have read-only visibility.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="pixel-card pixel-corner-mark" style={{ padding: '24px', marginBottom: '24px', maxWidth: '560px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '16px' }}>
+                  [ GRANT ADMIN ACCESS ]
+                </div>
+                <form onSubmit={handleAddAdmin} style={{ display: 'grid', gap: '14px' }}>
+                  <input
+                    type="text"
+                    className="pixel-input"
+                    placeholder="Full name (only for new admin)"
+                    value={adminForm.name}
+                    onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
+                  />
+                  <input
+                    type="email"
+                    className="pixel-input"
+                    placeholder="Email address"
+                    value={adminForm.email}
+                    onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
+                    required
+                  />
+                  <input
+                    type="password"
+                    className="pixel-input"
+                    placeholder="Password (only for new admin, min 6 chars)"
+                    value={adminForm.password}
+                    onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                  />
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '4px' }}>
+                    <button type="submit" className="btn-pixel-gold" style={{ padding: '10px 22px', fontSize: '0.86rem' }}>
+                      <UserPlus size={15} /> Add Admin
+                    </button>
+                    {adminMsg && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-mint)' }}>{adminMsg}</span>}
+                  </div>
+                </form>
+              </div>
+            )}
 
             <div className="pixel-card" style={{ padding: 0, overflow: 'hidden' }}>
               <table className="retro-table">
@@ -1225,27 +1275,53 @@ export const AdminDashboard = () => {
                       </td>
                     </tr>
                   )}
-                  {admins.filter(a => a.club_id === activeClubId).map(a => (
-                    <tr key={`${a.id}-${a.club_id}`}>
-                      <td style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-cream)' }}>{a.name}</td>
-                      <td style={{ fontSize: '0.86rem', color: 'var(--color-gold)' }}>{a.email}</td>
-                      <td style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>{a.club_name}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        {a.id !== user.id ? (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAdmin(a.id)}
-                            className="btn-pixel-outline"
-                            style={{ padding: '6px 12px', fontSize: '0.76rem', color: 'var(--color-coral)', borderColor: 'var(--color-coral)' }}
-                          >
-                            <Trash2 size={13} /> Remove
-                          </button>
-                        ) : (
-                          <span className="badge-pixel others">YOU</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {admins.filter(a => a.club_id === activeClubId).map(a => {
+                    const isSelf = a.id === user?.id;
+                    return (
+                      <tr key={`${a.id}-${a.club_id}`}>
+                        <td style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-cream)' }}>{a.name}</td>
+                        <td>
+                          {isMasterAdmin || isSelf ? (
+                            <div>
+                              <span style={{ fontSize: '0.86rem', color: 'var(--color-gold)' }}>{a.email}</span>
+                              {isMasterAdmin && a.phone && (
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <Phone size={11} color="var(--border-gold)" /> {a.phone}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                              <EyeOff size={13} color="var(--text-dim)" />
+                              <span style={{ letterSpacing: '0.12em' }}>••••••••••••</span>
+                              <span style={{ fontSize: '0.64rem', padding: '1px 5px', backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                                HIDDEN
+                              </span>
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>{a.club_name}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          {isSelf ? (
+                            <span className="badge-pixel others">YOU</span>
+                          ) : isMasterAdmin ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAdmin(a.id)}
+                              className="btn-pixel-outline"
+                              style={{ padding: '6px 12px', fontSize: '0.76rem', color: 'var(--color-coral)', borderColor: 'var(--color-coral)' }}
+                            >
+                              <Trash2 size={13} /> Remove
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.74rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                              READ ONLY
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
