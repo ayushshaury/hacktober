@@ -5,9 +5,11 @@ import {
   Plus, Trash2, CheckCircle2, ShieldCheck, Eye, Users, ToggleLeft, 
   ToggleRight, AlertCircle, FileSpreadsheet, UserCheck, Search, 
   Filter, ChevronDown, ChevronUp, EyeOff, Globe, Phone, Mail, 
-  UserPlus, Pencil, Award, ExternalLink
+  UserPlus, Pencil, Award, ExternalLink, Sparkles
 } from 'lucide-react';
 import { ImageUploader } from '../components/ImageUploader';
+import { HnccCandidateRanking } from '../components/HnccCandidateRanking';
+
 
 export const AdminDashboard = () => {
   const { user, token } = useAuth();
@@ -20,13 +22,19 @@ export const AdminDashboard = () => {
 
   // Multi-club admin: active club switcher
   const [myClubs, setMyClubs] = useState([]);
-  const [activeClubId, setActiveClubId] = useState(null);
+  const [activeClubId, setActiveClubId] = useState(user?.club_id || (user?.club_ids && user.club_ids[0]) || null);
 
   const withClub = (url) => {
     if (!activeClubId) return url;
     return `${url}${url.includes('?') ? '&' : '?'}club_id=${activeClubId}`;
   };
-  const apiFetch = (url, options = {}) => fetch(withClub(url), options);
+  const apiFetch = (url, options = {}) => {
+    const headers = {
+      ...(options.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+    return fetch(withClub(url), { ...options, headers });
+  };
 
   // Members tab state
   const [members, setMembers] = useState([]);
@@ -94,9 +102,7 @@ export const AdminDashboard = () => {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/admin/my-club', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch('/api/admin/my-club');
       const resData = await res.json();
 
       if (!res.ok) throw new Error(resData.error || 'Failed to load admin workspace');
@@ -108,14 +114,17 @@ export const AdminDashboard = () => {
       setRecruitmentOpen(resData.club.recruitment_open === 1);
       setLogoUrl(resData.club.logo_url || '');
 
-      // Fetch Form Builder questions
-      const formRes = await apiFetch('/api/induction/admin/form', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const formData = await formRes.json();
-      if (formData.questions) setQuestions(formData.questions);
+      // Fetch Form Builder questions safely
+      try {
+        const formRes = await apiFetch('/api/induction/admin/form');
+        const formData = await formRes.json();
+        if (formData.questions) setQuestions(formData.questions);
+      } catch (formErr) {
+        console.warn('Form questions notice:', formErr);
+      }
 
     } catch (err) {
+      console.error('fetchAdminData error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -158,22 +167,37 @@ export const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    if (!token) return;
+    if (!activeClubId && (user?.club_id || (user?.club_ids && user.club_ids[0]))) {
+      setActiveClubId(user.club_id || user.club_ids[0]);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    let isMounted = true;
     (async () => {
       try {
         const res = await apiFetch('/api/admin/my-clubs');
         const resData = await res.json();
         const clubs = resData.clubs || [];
-        setMyClubs(clubs);
-        if (clubs.length && !activeClubId) setActiveClubId(clubs[0].id);
+        if (isMounted) {
+          setMyClubs(clubs);
+          if (clubs.length && !activeClubId) {
+            setActiveClubId(clubs[0].id);
+          }
+        }
       } catch (err) {
         console.error('Error loading assigned clubs:', err);
       }
     })();
+    return () => { isMounted = false; };
   }, [token]);
 
   useEffect(() => {
-    if (token && activeClubId) {
+    if (token) {
       fetchAdminData();
       fetchMembers();
       fetchAdmins();
@@ -753,8 +777,10 @@ export const AdminDashboard = () => {
             { id: 'form-builder', label: 'Induction Form Builder', icon: FileSpreadsheet },
             { id: 'events', label: `Events (${data.events?.length || 0})`, icon: Calendar },
             { id: 'social', label: 'Social Links', icon: LinkIcon },
-            { id: 'announcements', label: 'Announcements', icon: Megaphone }
+            { id: 'announcements', label: 'Announcements', icon: Megaphone },
+            ...(data?.slug === 'hncc' || user?.club_slug === 'hncc' || user?.email?.includes('hncc') ? [{ id: 'ai-ranking', label: '★ AI Shortlisting', icon: Sparkles }] : [])
           ].map(tab => {
+
             const IconComponent = tab.icon;
             const isSel = activeTab === tab.id;
             return (
@@ -1575,7 +1601,15 @@ export const AdminDashboard = () => {
           </div>
         )}
 
+        {/* TAB: AI CANDIDATE RANKING (HnCC) */}
+        {activeTab === 'ai-ranking' && (
+          <div style={{ marginTop: '16px' }}>
+            <HnccCandidateRanking />
+          </div>
+        )}
+
       </div>
+
 
       {/* APPLICANT DETAIL INSPECTOR MODAL */}
       {selectedApplicant && (
