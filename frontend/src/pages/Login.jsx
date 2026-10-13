@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, Key, Mail, AlertCircle, CheckCircle, UserPlus, BookOpen, GraduationCap, Phone } from 'lucide-react';
 import { PixelIcon } from '../components/PixelIcon';
+import bitSindriCrest from '../assets/bit_sindri_crest.png';
 
 const DEPARTMENTS = [
   'Computer Science & Engineering (CSE)',
@@ -117,8 +118,8 @@ export const Login = () => {
         }} className="pixel-corner-mark">
           
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ width: '48px', height: '48px', border: '1px solid var(--border-gold)', backgroundColor: '#070c10', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-              <PixelIcon name="building" size={30} />
+            <div style={{ width: '56px', height: '56px', border: '1px solid var(--border-gold)', backgroundColor: '#070c10', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px', padding: '3px', boxShadow: '2px 2px 0px #8a7329' }}>
+              <img src={bitSindriCrest} alt="BIT Sindri Crest" style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }} />
             </div>
             <h2 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.65rem', color: 'var(--text-cream)', letterSpacing: '0.04em' }}>
               {mode === 'login' ? 'PORTAL ACCESS' : 'STUDENT REGISTRATION'}

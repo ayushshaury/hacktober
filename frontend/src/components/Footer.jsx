@@ -2,6 +2,7 @@ import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PixelIcon } from './PixelIcon';
+import bitSindriCrest from '../assets/bit_sindri_crest.png';
 
 export const Footer = () => {
   return (
@@ -17,8 +18,8 @@ export const Footer = () => {
           
           <div style={{ gridColumn: 'span 2' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <div style={{ width: '28px', height: '28px', border: '1px solid var(--border-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0c141c' }}>
-                <PixelIcon name="building" size={20} />
+              <div style={{ width: '32px', height: '32px', border: '1px solid var(--border-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0c141c', padding: '2px', overflow: 'hidden' }}>
+                <img src={bitSindriCrest} alt="BIT Sindri Crest" style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }} />
               </div>
               <span style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-cream)' }}>
                 BIT SINDRI CLUBS PORTAL
