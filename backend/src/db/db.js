@@ -28,7 +28,7 @@ const DATABASE_URL = RAW_DATABASE_URL
   .replace(/[?&]$/, '');
 
 // On Vercel, the filesystem is read-only except /tmp
-const dataDir = process.env.PGLITE_DIR || (process.env.VERCEL ? '/tmp/.pglite-data' : path.resolve(__dirname, '../../.pglite-data'));
+const dataDir = process.env.PGLITE_DIR || (process.env.VERCEL ? '/tmp/.pglite-data' : path.resolve(__dirname, '../../.pglite-v2'));
 
 let pglitePromise = null;
 let pgPool = null;
@@ -39,6 +39,13 @@ async function getPGlite() {
   if (!pglitePromise) {
     pglitePromise = (async () => {
       try {
+        const fs = await import('fs');
+        const pidPath = path.join(dataDir, 'postmaster.pid');
+        if (fs.existsSync(pidPath)) {
+          try {
+            fs.unlinkSync(pidPath);
+          } catch (_) {}
+        }
         const { PGlite } = await import('@electric-sql/pglite');
         const db = new PGlite(dataDir);
         await db.waitReady;

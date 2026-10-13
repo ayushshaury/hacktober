@@ -38,15 +38,18 @@ export const Login = () => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [animatingLogin, setAnimatingLogin] = useState(false);
+  const [animatingUser, setAnimatingUser] = useState(null);
+  const [progress, setProgress] = useState(15);
 
   const { user, login, register } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
+    if (user && !animatingLogin) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, navigate, animatingLogin]);
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -55,8 +58,22 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
-      navigate('/');
+      const loggedUser = await login(email, password);
+      setAnimatingUser(loggedUser);
+      setAnimatingLogin(true);
+      let p = 20;
+      const interval = setInterval(() => {
+        p += 25;
+        if (p >= 100) {
+          clearInterval(interval);
+          setProgress(100);
+          setTimeout(() => {
+            navigate('/');
+          }, 600);
+        } else {
+          setProgress(p);
+        }
+      }, 300);
     } catch (err) {
       setError(err.message || 'Login failed. Please verify your credentials.');
     } finally {
@@ -82,7 +99,7 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      await register({
+      const newUser = await register({
         name: regName,
         email: regEmail,
         password: regPassword,
@@ -91,10 +108,21 @@ export const Login = () => {
         batch_year: regBatchYear,
         phone: regPhone
       });
-      setSuccessMsg('Student account created successfully! Entering portal...');
-      setTimeout(() => {
-        navigate('/');
-      }, 1000);
+      setAnimatingUser(newUser);
+      setAnimatingLogin(true);
+      let p = 20;
+      const interval = setInterval(() => {
+        p += 25;
+        if (p >= 100) {
+          clearInterval(interval);
+          setProgress(100);
+          setTimeout(() => {
+            navigate('/');
+          }, 600);
+        } else {
+          setProgress(p);
+        }
+      }, 300);
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
       setLoading(false);
@@ -416,41 +444,36 @@ export const Login = () => {
           {/* Quick Demo Credentials for Testing */}
           {mode === 'login' && (
             <div style={{ marginTop: '28px', borderTop: '1px solid var(--border-subtle)', paddingTop: '18px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-gold)', marginBottom: '8px', letterSpacing: '0.04em' }}>
-                [ QUICK DEMO LOGIN ]
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-gold)', marginBottom: '10px', letterSpacing: '0.04em' }}>
+                [ QUICK DEMO LOGIN (3 ACCOUNTS) ]
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount('hncc.admin@bitsindri.ac.in', 'password123')}
-                  className="filter-btn"
-                  style={{ fontSize: '0.72rem', padding: '6px' }}
-                >
-                  HNCC ADMIN
-                </button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                 <button
                   type="button"
                   onClick={() => fillDemoAccount('rahul@example.com', 'password123')}
                   className="filter-btn"
-                  style={{ fontSize: '0.72rem', padding: '6px' }}
+                  style={{ fontSize: '0.72rem', padding: '8px 4px', textAlign: 'center' }}
+                  title="Club Admin: rahul@example.com"
                 >
-                  RAHUL - HNCC
+                  RAHUL (HNCC)
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillDemoAccount('sneha@example.com', 'password123')}
+                  onClick={() => fillDemoAccount('student@bitsindri.ac.in', 'password123')}
                   className="filter-btn"
-                  style={{ fontSize: '0.72rem', padding: '6px' }}
+                  style={{ fontSize: '0.72rem', padding: '8px 4px', textAlign: 'center' }}
+                  title="Student 1: student@bitsindri.ac.in"
                 >
-                  SNEHA - HNCC
+                  STUDENT 1
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillDemoAccount('aman@example.com', 'password123')}
+                  onClick={() => fillDemoAccount('ananya.student@bitsindri.ac.in', 'password123')}
                   className="filter-btn"
-                  style={{ fontSize: '0.72rem', padding: '6px' }}
+                  style={{ fontSize: '0.72rem', padding: '8px 4px', textAlign: 'center' }}
+                  title="Student 2: ananya.student@bitsindri.ac.in"
                 >
-                  AMAN - ISTE
+                  STUDENT 2
                 </button>
               </div>
             </div>
@@ -459,6 +482,192 @@ export const Login = () => {
         </div>
 
       </div>
+
+      {/* PIXELATED ART ANIMATION OVERLAY UPON SUCCESSFUL LOGIN */}
+      {animatingLogin && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 99999,
+          backgroundColor: '#04080c',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+          boxSizing: 'border-box',
+          overflow: 'hidden'
+        }}>
+          {/* Retro CRT Scanline Texture Overlay */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.45) 50%), linear-gradient(90deg, rgba(243, 208, 99, 0.02), rgba(0, 255, 204, 0.02), rgba(243, 208, 99, 0.02))',
+            backgroundSize: '100% 3px, 6px 100%',
+            pointerEvents: 'none',
+            zIndex: 1
+          }} />
+
+          {/* Glowing Radial Cyber Grid Vignette */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: 'radial-gradient(circle at center, rgba(243, 208, 99, 0.16) 0%, rgba(7, 12, 16, 0.95) 75%)',
+            pointerEvents: 'none'
+          }} />
+
+          {/* Central 8-bit Pixel Card Container */}
+          <div 
+            className="pixel-corner-mark"
+            style={{
+              position: 'relative',
+              zIndex: 2,
+              backgroundColor: '#0a1017',
+              border: '2px solid var(--color-gold)',
+              padding: '36px 32px',
+              maxWidth: '520px',
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: '0 0 50px rgba(243, 208, 99, 0.3), 6px 6px 0px #5c4c1a',
+              fontFamily: 'var(--font-mono)'
+            }}
+          >
+            {/* Animated 8-bit crest / avatar badge with pulsing neon glow */}
+            <div style={{
+              width: '88px',
+              height: '88px',
+              margin: '0 auto 20px auto',
+              backgroundColor: '#070c10',
+              border: '2px solid var(--color-gold)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '6px',
+              boxShadow: '3px 3px 0px #8a7329, 0 0 24px rgba(243, 208, 99, 0.5)',
+              imageRendering: 'pixelated'
+            }}>
+              <img 
+                src={bitSindriCrest} 
+                alt="BIT Sindri Crest" 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'contain', 
+                  imageRendering: 'pixelated' 
+                }} 
+              />
+            </div>
+
+            {/* Pixel Stamp Tag */}
+            <div style={{
+              display: 'inline-block',
+              padding: '5px 16px',
+              backgroundColor: 'rgba(243, 208, 99, 0.15)',
+              border: '1px solid var(--color-gold)',
+              color: 'var(--color-gold)',
+              fontFamily: 'var(--font-pixel)',
+              fontSize: '0.88rem',
+              letterSpacing: '0.08em',
+              marginBottom: '14px',
+              textTransform: 'uppercase',
+              boxShadow: '2px 2px 0px #5c4c1a'
+            }}>
+              ★ ACCESS GRANTED ★
+            </div>
+
+            <h2 style={{
+              fontFamily: 'var(--font-pixel)',
+              fontSize: '1.5rem',
+              color: 'var(--text-cream)',
+              marginBottom: '6px',
+              letterSpacing: '0.04em'
+            }}>
+              AUTHENTICATION SUCCESS
+            </h2>
+
+            <div style={{
+              fontSize: '0.86rem',
+              color: 'var(--color-mint)',
+              marginBottom: '20px',
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: '0.05em',
+              fontWeight: 700
+            }}>
+              WELCOME, {animatingUser?.name ? animatingUser.name.toUpperCase() : 'USER'}!
+            </div>
+
+            {/* Pixel Info Terminal Card */}
+            <div style={{
+              backgroundColor: '#060b10',
+              border: '1px solid var(--border-card)',
+              padding: '14px 18px',
+              textAlign: 'left',
+              marginBottom: '22px',
+              fontSize: '0.78rem',
+              lineHeight: 1.6,
+              color: 'var(--text-muted)'
+            }}>
+              <div><span style={{ color: 'var(--color-gold)' }}>IDENTITY:</span> <strong style={{ color: 'var(--text-cream)' }}>{animatingUser?.name || 'Verified Member'}</strong></div>
+              <div><span style={{ color: 'var(--color-cyan)' }}>ROLE:</span> <span style={{ color: animatingUser?.role === 'club_admin' ? 'var(--color-gold)' : 'var(--color-mint)', fontWeight: 700 }}>{animatingUser?.role === 'club_admin' ? 'CLUB ADMINISTRATOR' : 'BIT SINDRI STUDENT'}</span></div>
+              <div><span style={{ color: 'var(--color-mint)' }}>STATUS:</span> VERIFIED BIT SINDRI SESSION</div>
+              <div><span style={{ color: 'var(--text-dim)' }}>SYSTEM:</span> INITIALIZING WORKSPACE MATRIX...</div>
+            </div>
+
+            {/* Retro Chunky Segmented 8-bit Progress Bar */}
+            <div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '0.74rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--color-gold)',
+                marginBottom: '6px',
+                fontWeight: 700
+              }}>
+                <span>LOADING MATRIX</span>
+                <span>{progress}%</span>
+              </div>
+              <div style={{
+                height: '18px',
+                backgroundColor: '#04070a',
+                border: '1px solid var(--border-gold)',
+                padding: '2px',
+                display: 'flex',
+                gap: '2px'
+              }}>
+                {Array.from({ length: 20 }).map((_, idx) => {
+                  const filled = (idx + 1) * 5 <= progress;
+                  return (
+                    <div 
+                      key={idx}
+                      style={{
+                        flex: 1,
+                        backgroundColor: filled ? (idx < 14 ? 'var(--color-gold)' : 'var(--color-mint)') : 'transparent',
+                        boxShadow: filled ? '0 0 6px rgba(243, 208, 99, 0.7)' : 'none',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{
+              marginTop: '16px',
+              fontSize: '0.72rem',
+              color: 'var(--text-dim)',
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: '0.06em'
+            }}>
+              [ ENTERING BIT SINDRI UNIFIED CLUBS DIRECTORY... ]
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };

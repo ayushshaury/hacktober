@@ -1181,7 +1181,7 @@ export const AdminDashboard = () => {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', marginTop: '4px', marginBottom: '24px' }}>
               {isMasterAdmin 
                 ? 'Master Administrator Workspace: Grant or revoke admin access and manage administrative assignments across clubs.'
-                : 'View assigned administrators for this club. Only hncc.admin@bitsindri.ac.in is authorized to grant or remove admin access.'}
+                : 'View assigned administrators for this club. Only Master Administrator is authorized to grant or remove admin access.'}
             </p>
 
             {!isMasterAdmin ? (
@@ -1215,7 +1215,7 @@ export const AdminDashboard = () => {
                     ADMIN MANAGEMENT RESTRICTED
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
-                    Only master administrator (<strong style={{ color: 'var(--text-cream)' }}>hncc.admin@bitsindri.ac.in</strong>) can grant new admin access or remove admins. Other administrators have read-only visibility.
+                    Only Master Administrator can grant new admin access or remove admins. Other administrators have read-only visibility.
                   </div>
                 </div>
               </div>
@@ -1260,51 +1260,69 @@ export const AdminDashboard = () => {
             <div className="pixel-card" style={{ padding: 0, overflow: 'hidden' }}>
               <table className="retro-table">
                 <thead>
-                  <tr>
-                    <th style={{ width: '28%' }}>Admin</th>
-                    <th style={{ width: '34%' }}>Email Address</th>
-                    <th style={{ width: '24%' }}>Assigned Club</th>
-                    <th style={{ width: '14%', textAlign: 'right' }}>Action</th>
-                  </tr>
+                  {isMasterAdmin ? (
+                    <tr>
+                      <th style={{ width: '28%' }}>Admin</th>
+                      <th style={{ width: '34%' }}>Email Address</th>
+                      <th style={{ width: '24%' }}>Assigned Club</th>
+                      <th style={{ width: '14%', textAlign: 'right' }}>Action</th>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <th style={{ width: '45%' }}>Admin</th>
+                      <th style={{ width: '40%' }}>Assigned Club</th>
+                      <th style={{ width: '15%', textAlign: 'right' }}>Status</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {admins.filter(a => a.club_id === activeClubId).length === 0 && (
                     <tr>
-                      <td colSpan={4} style={{ padding: '24px 18px', color: 'var(--text-muted)', fontSize: '0.88rem', textAlign: 'center' }}>
+                      <td colSpan={isMasterAdmin ? 4 : 3} style={{ padding: '24px 18px', color: 'var(--text-muted)', fontSize: '0.88rem', textAlign: 'center' }}>
                         No admins assigned to this club yet.
                       </td>
                     </tr>
                   )}
                   {admins.filter(a => a.club_id === activeClubId).map(a => {
                     const isSelf = a.id === user?.id;
+                    if (!isMasterAdmin) {
+                      return (
+                        <tr key={`${a.id}-${a.club_id}`}>
+                          <td style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-cream)' }}>
+                            {a.name}
+                          </td>
+                          <td style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>
+                            {a.club_name}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {isSelf ? (
+                              <span className="badge-pixel others">YOU</span>
+                            ) : (
+                              <span className="badge-pixel mint">ACTIVE</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    }
+
                     return (
                       <tr key={`${a.id}-${a.club_id}`}>
                         <td style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-cream)' }}>{a.name}</td>
                         <td>
-                          {isMasterAdmin || isSelf ? (
-                            <div>
-                              <span style={{ fontSize: '0.86rem', color: 'var(--color-gold)' }}>{a.email}</span>
-                              {isMasterAdmin && a.phone && (
-                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <Phone size={11} color="var(--border-gold)" /> {a.phone}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-                              <EyeOff size={13} color="var(--text-dim)" />
-                              <span style={{ letterSpacing: '0.12em' }}>••••••••••••</span>
-                              <span style={{ fontSize: '0.64rem', padding: '1px 5px', backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                                HIDDEN
-                              </span>
-                            </span>
-                          )}
+                          <div>
+                            <span style={{ fontSize: '0.86rem', color: 'var(--color-gold)' }}>{a.email}</span>
+                            {a.phone && (
+                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Phone size={11} color="var(--border-gold)" /> {a.phone}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>{a.club_name}</td>
                         <td style={{ textAlign: 'right' }}>
                           {isSelf ? (
                             <span className="badge-pixel others">YOU</span>
-                          ) : isMasterAdmin ? (
+                          ) : (
                             <button
                               type="button"
                               onClick={() => handleRemoveAdmin(a.id)}
@@ -1313,10 +1331,6 @@ export const AdminDashboard = () => {
                             >
                               <Trash2 size={13} /> Remove
                             </button>
-                          ) : (
-                            <span style={{ fontSize: '0.74rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-                              READ ONLY
-                            </span>
                           )}
                         </td>
                       </tr>
