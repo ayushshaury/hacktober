@@ -662,4 +662,283 @@ textarea.input {
   background-color: rgba(20, 35, 50, 0.45);
 }
 
+/* ============================================================
+   EVENTS SECTION - CINEMATIC RETRO ARCADE MOTIONS & STYLES
+   ============================================================ */
+
+@keyframes gridDrift {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 32px;
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(74, 222, 128, 0.6), inset 0 0 2px rgba(74, 222, 128, 0.4);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(74, 222, 128, 0.9), inset 0 0 6px rgba(74, 222, 128, 0.7);
+    opacity: 0.75;
+  }
+}
+
+@keyframes liveDotPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.45;
+  }
+}
+
+@keyframes slideCardUp {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes buttonArrowSlide {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes goldAuraGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(243, 208, 99, 0.15), inset 0 0 0 1px rgba(243, 208, 99, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(243, 208, 99, 0.35), inset 0 0 0 1px rgba(243, 208, 99, 0.5);
+  }
+}
+
+/* Retro Grid Ambient Canvas for Events */
+.events-retro-grid {
+  background-image: 
+    linear-gradient(to right, rgba(243, 208, 99, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+  animation: gridDrift 20s linear infinite;
+}
+
+/* Featured Hero Event Showcase */
+.event-hero-card {
+  background: linear-gradient(135deg, #0e1722 0%, #080d13 100%);
+  border: 1px solid var(--border-gold);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 20px rgba(243, 208, 99, 0.15);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.event-hero-card:hover {
+  border-color: #ffd700;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.75), 0 0 30px rgba(243, 208, 99, 0.3);
+}
+
+.event-hero-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.12),
+    rgba(0, 0, 0, 0.12) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+/* Event Grid Card */
+.event-grid-card {
+  background-color: #0c141c;
+  border: 1px solid var(--border-card);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  text-decoration: none;
+}
+
+.event-grid-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--border-gold);
+  background-color: #0f1924;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.75), 0 0 20px rgba(243, 208, 99, 0.25);
+}
+
+.event-grid-card .event-img-wrap {
+  position: relative;
+  width: 100%;
+  height: 190px;
+  background-color: #060a0e;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.event-grid-card .event-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.event-grid-card:hover .event-img-wrap img {
+  transform: scale(1.06);
+}
+
+/* Event Image Gradient Vignette */
+.event-grid-card .event-img-wrap::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 55%;
+  background: linear-gradient(to top, #0c141c 0%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Retro Calendar Stamp Chip */
+.event-calendar-stamp {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  background-color: #060a0e;
+  border: 1px solid var(--border-gold);
+  box-shadow: 2px 2px 0px #8a7329, 0 4px 8px rgba(0, 0, 0, 0.7);
+  border-radius: 2px;
+  text-align: center;
+  z-index: 3;
+  width: 52px;
+  overflow: hidden;
+}
+
+.event-calendar-stamp .month {
+  background-color: var(--color-gold);
+  color: var(--text-dark);
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 2px 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.event-calendar-stamp .day {
+  color: var(--text-cream);
+  font-family: var(--font-pixel);
+  font-size: 1.15rem;
+  font-weight: 800;
+  padding: 3px 0 2px 0;
+  background-color: #080d13;
+}
+
+/* Live Pulse Pill */
+.event-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background-color: rgba(74, 222, 128, 0.14);
+  color: var(--color-mint);
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  animation: pulseGlow 2.5s infinite ease-in-out;
+}
+
+.event-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--color-mint);
+  display: inline-block;
+  animation: liveDotPulse 1.6s infinite ease-in-out;
+  box-shadow: 0 0 6px var(--color-mint);
+}
+
+/* Real-time Countdown Box */
+.event-countdown-box {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.event-countdown-unit {
+  background-color: #070c10;
+  border: 1px solid var(--border-gold-dim);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.8);
+  padding: 6px 10px;
+  text-align: center;
+  min-width: 54px;
+}
+
+.event-countdown-num {
+  font-family: var(--font-pixel);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-gold);
+  line-height: 1;
+  text-shadow: 0 0 8px rgba(243, 208, 99, 0.4);
+}
+
+.event-countdown-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-top: 3px;
+  letter-spacing: 0.06em;
+}
+
+/* Timeline Layout Styles */
+.timeline-track {
+  position: relative;
+  padding-left: 36px;
+}
+
+.timeline-track::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 12px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--color-gold) 0%, var(--color-cyan) 60%, var(--border-card) 100%);
+  box-shadow: 0 0 8px rgba(243, 208, 99, 0.35);
+}
+
+.timeline-step-node {
+  position: absolute;
+  left: 6px;
+  top: 24px;
+  width: 14px;
+  height: 14px;
+  background-color: #0c141c;
+  border: 2px solid var(--color-gold);
+  box-shadow: 0 0 8px var(--color-gold);
+  border-radius: 50%;
+  z-index: 2;
+}
+
+
 
