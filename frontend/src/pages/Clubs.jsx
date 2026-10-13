@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { 
   Search, Sparkles, ShieldCheck, Users, Flame, 
   ArrowUpRight, X, Filter, ChevronDown, CheckCircle2 
@@ -9,6 +10,8 @@ import { getCategoryDisplayTag } from '../data/clubs';
 import hnccLogo from '../assets/hncc_logo.png';
 
 export const Clubs = () => {
+  const { user } = useAuth();
+  const isClubAdmin = user && (user.role === 'club_admin' || user.role === 'admin');
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
 
@@ -234,7 +237,7 @@ export const Clubs = () => {
                 >
                   VISIT WORKSPACE <ArrowUpRight size={15} />
                 </Link>
-                {spotlightClub.recruitment_open === 1 && (
+                {spotlightClub.recruitment_open === 1 && !isClubAdmin && (
                   <Link
                     to={`/clubs/${spotlightClub.slug}/apply`}
                     className="btn-pixel-outline"

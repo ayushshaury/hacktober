@@ -1,10 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { ClubArt } from './ClubArt';
 import { getCategoryClass, getCategoryDisplayTag } from '../data/clubs';
 import { Users, ChevronRight, Sparkles, Send, ShieldCheck } from 'lucide-react';
 
 export const ClubCard = ({ club, index = 0 }) => {
+  const { user } = useAuth();
+  const isClubAdmin = user && (user.role === 'club_admin' || user.role === 'admin');
   const catClass = getCategoryClass(club.category);
   const tagText = getCategoryDisplayTag(club.category);
   const membersCount = club.member_count || (80 + ((club.id * 7) % 65));
@@ -184,7 +187,7 @@ export const ClubCard = ({ club, index = 0 }) => {
             EXPLORE <ChevronRight size={14} />
           </Link>
 
-          {isRecruiting && (
+          {isRecruiting && !isClubAdmin && (
             <Link
               to={`/clubs/${club.slug}/apply`}
               className="btn-pixel-outline"

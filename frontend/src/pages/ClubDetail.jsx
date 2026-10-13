@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { PixelIcon } from '../components/PixelIcon';
-import { Users, Calendar, Award, GraduationCap, ExternalLink, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Users, Calendar, Award, GraduationCap, ExternalLink, ArrowLeft, CheckCircle, ShieldAlert } from 'lucide-react';
 import codingClubRoomImg from '../assets/coding_club_room_pixel.jpg';
 
 export const ClubDetail = () => {
   const { slug } = useParams();
+  const { user } = useAuth();
   const [club, setClub] = useState(null);
   const [activeTab, setActiveTab] = useState('about');
   const [loading, setLoading] = useState(true);
@@ -150,8 +152,25 @@ export const ClubDetail = () => {
             </p>
 
             {/* Action Buttons: Apply Now & Visit Socials */}
-            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-              {club.recruitment_open === 1 ? (
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {user && (user.role === 'club_admin' || user.role === 'admin') ? (
+                <div
+                  style={{
+                    padding: '10px 18px',
+                    fontSize: '0.78rem',
+                    fontFamily: 'var(--font-mono)',
+                    color: '#f87171',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  title="Club administrators cannot apply to clubs"
+                >
+                  <ShieldAlert size={14} /> ADMIN ACCESS: CANNOT APPLY
+                </div>
+              ) : club.recruitment_open === 1 ? (
                 <Link
                   to={`/clubs/${club.slug}/apply`}
                   className="btn-pixel-gold"
