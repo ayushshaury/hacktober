@@ -41,17 +41,26 @@ export const AuthProvider = ({ children }) => {
     fetchMe();
   }, [token]);
 
+  const safeParseResponse = async (res, defaultAction) => {
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`Server returned status ${res.status}. Please check your connection or database configuration.`);
+    }
+    if (!res.ok) {
+      throw new Error(data.error || `${defaultAction} failed`);
+    }
+    return data;
+  };
+
   const login = async (email, password) => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || 'Login failed');
-    }
+    const data = await safeParseResponse(res, 'Login');
 
     localStorage.setItem('bit_clubs_token', data.token);
     setToken(data.token);
@@ -65,11 +74,7 @@ export const AuthProvider = ({ children }) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(studentData)
     });
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || 'Registration failed');
-    }
+    const data = await safeParseResponse(res, 'Registration');
 
     localStorage.setItem('bit_clubs_token', data.token);
     setToken(data.token);
