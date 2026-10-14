@@ -8,6 +8,8 @@ import { seedEvents } from './seed_events.js';
 import { seedInductionForms } from './seed_induction.js';
 import { seedAdmins } from './seed_admins.js';
 
+import { SCHEMA_SQL } from './schema_sql.js';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -16,8 +18,13 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 export async function initDbSchemaAndSeeds() {
   const db = await getDb();
 
-  const schemaPath = path.resolve(__dirname, 'schema.sql');
-  const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+  let schemaSql = SCHEMA_SQL;
+  try {
+    const schemaPath = path.resolve(__dirname, 'schema.sql');
+    if (fs.existsSync(schemaPath)) {
+      schemaSql = fs.readFileSync(schemaPath, 'utf8');
+    }
+  } catch (_) {}
 
   await db.exec(schemaSql);
   console.log('[init] Database tables verified & created successfully.');

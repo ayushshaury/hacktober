@@ -39,16 +39,23 @@ async function getPGlite() {
   if (!pglitePromise) {
     pglitePromise = (async () => {
       try {
-        const fs = await import('fs');
-        const pidPath = path.join(dataDir, 'postmaster.pid');
-        if (fs.existsSync(pidPath)) {
-          try {
-            fs.unlinkSync(pidPath);
-          } catch (_) {}
-        }
         const { PGlite } = await import('@electric-sql/pglite');
-        const db = new PGlite(dataDir);
-        await db.waitReady;
+        let db;
+        try {
+          const fs = await import('fs');
+          const pidPath = path.join(dataDir, 'postmaster.pid');
+          if (fs.existsSync(pidPath)) {
+            try {
+              fs.unlinkSync(pidPath);
+            } catch (_) {}
+          }
+          db = new PGlite(dataDir);
+          await db.waitReady;
+        } catch (storageErr) {
+          console.warn('[db] Ephemeral storage initialization failed, falling back to in-memory PGlite:', storageErr.message);
+          db = new PGlite();
+          await db.waitReady;
+        }
         return db;
       } catch (err) {
         console.error('[db] Error loading @electric-sql/pglite:', err.message);
