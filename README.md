@@ -21,14 +21,14 @@ Built with a **Node.js Express** backend (with embedded PGlite / PostgreSQL), **
 ### 🛡️ 2. Privacy & Data Masking Guards
 - **Candidate Anonymization for Club Admins**:
   - Seeded applicant names are automatically masked to initials (e.g. `Ayush Kumar` $\to$ `AK`, `Gaurav Roy` $\to$ `GR`).
-  - Applicant phone numbers are hashed (e.g. `9876543210` $\to$ `987****210`).
-  - Full details remain accessible exclusively to the Master Administrator (`hncc.admin@bitsindri.ac.in`).
+  - Applicant phone numbers are hashed (e.g. `98765410` $\to$ `987****210`).
+  - Full details remain accessible exclusively to the Master Administrator 
 - **Dynamic Scope**: User-uploaded CSV candidate records retain original formatting and are not masked.
 - **Admin Directory Privacy**: Restricted admin views mask fellow administrators' email addresses and phone numbers.
 
 ### 🔐 3. Granular Role-Based Access Control (RBAC)
 - **Super / Master Admin Privilege**:
-  - Only `hncc.admin@bitsindri.ac.in` has the authority to grant or revoke club administrator roles.
+  - Only master admin has the authority to grant or revoke club administrator roles.
   - Non-master admins have administrative promotion/revocation controls disabled and hidden.
 - **Applicant Restrictions**:
   - Club administrators are restricted from applying to any club inductions (enforced across backend routes and client UI).
