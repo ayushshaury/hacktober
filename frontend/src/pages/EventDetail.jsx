@@ -4,6 +4,9 @@ import { Calendar, MapPin, ExternalLink, ArrowLeft, CheckCircle2, UserCheck, Ale
 import { useAuth } from '../context/AuthContext';
 import { PixelIcon } from '../components/PixelIcon';
 import eventHacksindriImg from '../assets/event_hacksindri_pixel.jpg';
+import eventContestImg from '../assets/event_contest_pixel.jpg';
+import eventGreenCampusImg from '../assets/event_green_campus_pixel.jpg';
+import eventTechfestImg from '../assets/event_techfest_pixel.jpg';
 
 export const EventDetail = () => {
   const { id } = useParams();
@@ -124,9 +127,14 @@ export const EventDetail = () => {
             overflow: 'hidden'
           }}>
             <img
-              src={event.image_url ? (event.image_url.startsWith('/uploads') ? `${event.image_url}` : event.image_url) : eventHacksindriImg}
+              src={event.image_url ? (event.image_url.startsWith('/uploads') ? `${event.image_url}` : event.image_url) : (
+                event.title.toLowerCase().includes('code') || event.title.toLowerCase().includes('contest') ? eventContestImg :
+                event.title.toLowerCase().includes('green') || event.title.toLowerCase().includes('plant') ? eventGreenCampusImg :
+                event.title.toLowerCase().includes('fest') || event.title.toLowerCase().includes('summit') ? eventTechfestImg :
+                eventHacksindriImg
+              )}
               alt={event.title}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'pixelated' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           </div>
 

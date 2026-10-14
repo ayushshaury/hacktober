@@ -27,21 +27,31 @@ const DATABASE_URL = RAW_DATABASE_URL
   .replace(/\?&/, '?')
   .replace(/[?&]$/, '');
 
-const dataDir = process.env.PGLITE_DIR || path.resolve(__dirname, '../../.pglite-data');
+// On Vercel, the filesystem is read-only except /tmp
+const dataDir = process.env.PGLITE_DIR || (process.env.VERCEL ? '/tmp/.pglite-data' : path.resolve(__dirname, '../../.pglite-v2'));
 
 let pglitePromise = null;
 let pgPool = null;
+let isReady = false;
+let initPromise = null;
 
 async function getPGlite() {
   if (!pglitePromise) {
     pglitePromise = (async () => {
       try {
+        const fs = await import('fs');
+        const pidPath = path.join(dataDir, 'postmaster.pid');
+        if (fs.existsSync(pidPath)) {
+          try {
+            fs.unlinkSync(pidPath);
+          } catch (_) {}
+        }
         const { PGlite } = await import('@electric-sql/pglite');
         const db = new PGlite(dataDir);
         await db.waitReady;
         return db;
       } catch (err) {
-        console.error('[db] Error loading @electric-sql/pglite. Please ensure dependencies are installed via `npm install` in backend.');
+        console.error('[db] Error loading @electric-sql/pglite:', err.message);
         throw err;
       }
     })();
@@ -57,6 +67,44 @@ function getPool() {
     });
   }
   return pgPool;
+}
+
+let isInitializing = false;
+
+/**
+ * Automatically ensures tables and initial seed data exist on startup.
+ */
+async function ensureTables() {
+  if (isReady || isInitializing) return;
+  isInitializing = true;
+  try {
+    let count = 0;
+    try {
+      if (hasDatabaseUrl) {
+        const pool = getPool();
+        const res = await pool.query("SELECT COUNT(*) as count FROM clubs");
+        count = parseInt(res.rows[0]?.count || 0, 10);
+      } else {
+        const db = await getPGlite();
+        const res = await db.query("SELECT COUNT(*) as count FROM clubs");
+        count = parseInt(res.rows[0]?.count || 0, 10);
+      }
+    } catch {
+      count = 0;
+    }
+
+    if (count === 0) {
+      console.log('[db] Initializing schema and seed data...');
+      const { initDbSchemaAndSeeds } = await import('./init.js');
+      await initDbSchemaAndSeeds();
+    }
+    isReady = true;
+  } catch (err) {
+    console.warn('[db] Auto-init notice:', err.message);
+    isReady = true;
+  } finally {
+    isInitializing = false;
+  }
 }
 
 /**
@@ -91,6 +139,7 @@ export function convertPlaceholders(sql) {
  */
 export const dbWrapper = {
   async get(sql, params = []) {
+    await ensureTables();
     if (hasDatabaseUrl) {
       const pool = getPool();
       const res = await pool.query(convertPlaceholders(sql), params || []);
@@ -102,6 +151,7 @@ export const dbWrapper = {
   },
 
   async all(sql, params = []) {
+    await ensureTables();
     if (hasDatabaseUrl) {
       const pool = getPool();
       const res = await pool.query(convertPlaceholders(sql), params || []);
@@ -113,6 +163,7 @@ export const dbWrapper = {
   },
 
   async run(sql, params = []) {
+    await ensureTables();
     let cleanSql = sql.trim();
     const isInsert = /^\s*insert\s+into\s+/i.test(cleanSql);
     const hasReturning = /\breturning\b/i.test(cleanSql);
@@ -183,6 +234,7 @@ export const dbWrapper = {
   },
 
   async query(sql, params = []) {
+    await ensureTables();
     if (hasDatabaseUrl) {
       const pool = getPool();
       return await pool.query(convertPlaceholders(sql), params || []);

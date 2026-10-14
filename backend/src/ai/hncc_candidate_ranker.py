@@ -1,19 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-HnCC AI Candidate Shortlisting & Recommendation Model
-Integrates the official sentence-transformers MiniLM model and HNCC 2k26 induction dataset.
-
-Preserves:
-- sentence-transformers/all-MiniLM-L6-v2 embedding model
-- 80% skills (70% semantic + 20% keywords + 10% languages) + 20% communication rating (1-5 scaled to 100)
-- CP / DSA, Web Development, and AI / ML domains with exact track definitions
-- Display-only metadata (name, phone, branch) not passed into model
-"""
 
 from __future__ import annotations
 import os
-import sys
 import re
 import json
 import argparse
@@ -107,7 +96,7 @@ class ClubShortlistingModel:
             raise ValueError("top_n must be an integer between 1 and 500")
         
         candidates_list = list(candidates)
-        # Use batch encoding for skills to achieve 50x speedup while preserving exact math
+        
         track = TRACKS[domain]
         all_skills = [_clean(c.get("skills_text", "")) for c in candidates_list]
         non_empty_indices = [i for i, s in enumerate(all_skills) if s]
@@ -136,9 +125,13 @@ class ClubShortlistingModel:
             else:
                 skills_score = 0.0
 
-            try:
-                comm_rating = float(candidate.get("communication_rating")) if candidate.get("communication_rating") is not None else float("nan")
-            except (TypeError, ValueError):
+            raw_comm = candidate.get("communication_rating")
+            if raw_comm is not None:
+                try:
+                    comm_rating = float(raw_comm)
+                except (TypeError, ValueError):
+                    comm_rating = float("nan")
+            else:
                 comm_rating = float("nan")
 
             if not np.isfinite(comm_rating) or not 1 <= comm_rating <= 5:
@@ -174,7 +167,7 @@ def parse_candidates_from_csv(csv_path: str = CSV_PATH) -> List[Dict[str, Any]]:
     df = pd.read_csv(csv_path)
     df.columns = [str(c).strip() for c in df.columns]
 
-    # Find Communication column
+    
     comm_col = "How do you rate yourself in your Communication Skills ?"
     if comm_col not in df.columns:
         for c in df.columns:
@@ -185,9 +178,7 @@ def parse_candidates_from_csv(csv_path: str = CSV_PATH) -> List[Dict[str, Any]]:
     if comm_col in df.columns:
         df["comm_numeric"] = pd.to_numeric(df[comm_col], errors="coerce")
     else:
-        df["comm_numeric"] = 3.0  # Default neutral score if column absent
-
-    # Find Programming Language / Skills columns
+        df["comm_numeric"] = 3.0  
     lang_col = "Which Programming Language do you know ?"
     if lang_col not in df.columns:
         for c in df.columns:
@@ -225,6 +216,7 @@ def parse_candidates_from_csv(csv_path: str = CSV_PATH) -> List[Dict[str, Any]]:
 
     candidates = []
     for idx, row in df.iterrows():
+        cand_num = int(idx) + 1 if isinstance(idx, int) else (len(candidates) + 1)
         lang = str(row.get(lang_col, "")) if lang_col in df.columns else ""
         tech = str(row.get(tech_col, "")) if tech_col in df.columns else ""
         if lang and tech and lang != "nan" and tech != "nan":
@@ -236,7 +228,7 @@ def parse_candidates_from_csv(csv_path: str = CSV_PATH) -> List[Dict[str, Any]]:
         else:
             skills_text = ""
 
-        raw_name = str(row.get(name_col, f"Candidate #{idx+1}")) if name_col in df.columns else f"Candidate #{idx+1}"
+        raw_name = str(row.get(name_col, f"Candidate #{cand_num}")) if name_col in df.columns else f"Candidate #{cand_num}"
         name = "Anonymous" if raw_name == "nan" or not raw_name.strip() else raw_name.strip()
 
         raw_phone = str(row.get(phone_col, "N/A")) if phone_col in df.columns else "N/A"
@@ -273,7 +265,37 @@ def generate_and_cache_all_rankings():
         json.dump(cache_data, f, indent=2, ensure_ascii=False)
     return cache_data
 
-def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = None) -> Dict[str, Any]:
+def mask_candidate_name(name: str) -> str:
+    """Masks candidate name to first letter of name + first letter of surname (e.g. Ayush Kumar -> AK)."""
+    if not name or str(name).strip() in ("N/A", "nan", "Anonymous", ""):
+        return "Anonymous"
+    parts = [p.strip() for p in str(name).strip().split() if p.strip()]
+    if not parts:
+        return "Anonymous"
+    if len(parts) == 1:
+        return parts[0][0].upper()
+    return f"{parts[0][0].upper()}{parts[-1][0].upper()}"
+
+def hash_phone_number(phone: str) -> str:
+    """Hashes/masks phone number for non-master admins on seeded data (e.g. 8409374177 -> ******4177)."""
+    if not phone or str(phone).strip() in ("N/A", "nan", ""):
+        return "N/A"
+    clean = str(phone).strip()
+    prefix = ""
+    if clean.startswith("+91"):
+        prefix = "+91 "
+        clean = clean[3:].strip()
+    elif clean.startswith("+"):
+        prefix = clean[:3] + " "
+        clean = clean[3:].strip()
+    
+    digits = "".join(ch for ch in clean if ch.isdigit())
+    if len(digits) >= 4:
+        masked_digits = ("*" * max(6, len(digits) - 4)) + digits[-4:]
+        return f"{prefix}{masked_digits}"
+    return f"{prefix}******"
+
+def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = None, admin_email: Optional[str] = None) -> Dict[str, Any]:
     if domain not in TRACKS:
         raise ValueError(f"Invalid domain '{domain}'. Choose from: {list(TRACKS.keys())}")
     if top_n < 1:
@@ -281,7 +303,9 @@ def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = Non
     if top_n > 500:
         top_n = 500
 
-    # If custom CSV provided, compute directly from that CSV
+    is_master_admin = (admin_email or "").strip().lower() == "hncc.admin@bitsindri.ac.in"
+
+    # If custom CSV provided, compute directly from that CSV (Neither names nor phone numbers are masked for custom user CSVs)
     if csv_path and os.path.exists(csv_path):
         candidates = parse_candidates_from_csv(csv_path)
         model = ClubShortlistingModel()
@@ -294,16 +318,20 @@ def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = Non
             "candidates": results
         }
 
-    # Otherwise check cache first for instant response
+    # Otherwise check cache first for instant response (Seeded official data)
     if os.path.exists(CACHE_JSON_PATH):
         try:
             with open(CACHE_JSON_PATH, "r", encoding="utf-8") as f:
                 cache_data = json.load(f)
             if domain in cache_data.get("domains", {}):
                 all_domain_candidates = cache_data["domains"][domain]
-                sliced = all_domain_candidates[:top_n]
+                sliced = [dict(c) for c in all_domain_candidates[:top_n]]
                 for rank, row in enumerate(sliced, 1):
                     row["rank"] = rank
+                    # Hash phone number and mask name to initials (e.g. Ayush Kumar -> AK) for non-master admins on seeded data
+                    if not is_master_admin:
+                        row["phone_number"] = hash_phone_number(row.get("phone_number", "N/A"))
+                        row["candidate_name"] = mask_candidate_name(row.get("candidate_name", ""))
                 return {
                     "domain": domain,
                     "top_n": top_n,
@@ -318,6 +346,13 @@ def get_ranked_candidates(domain: str, top_n: int, csv_path: Optional[str] = Non
     candidates = parse_candidates_from_csv()
     model = ClubShortlistingModel()
     results = model.shortlist(candidates, domain, top_n=top_n)
+    
+    # Hash phone number and mask name to initials for non-master admins on seeded data
+    if not is_master_admin:
+        for r in results:
+            r["phone_number"] = hash_phone_number(r.get("phone_number", "N/A"))
+            r["candidate_name"] = mask_candidate_name(r.get("candidate_name", ""))
+
     return {
         "domain": domain,
         "top_n": top_n,
@@ -331,6 +366,7 @@ def main():
     parser.add_argument("--domain", type=str, default="Web Development", help="CP / DSA, Web Development, or AI / ML")
     parser.add_argument("--top_n", type=int, default=10, help="Number of top candidates (1-500)")
     parser.add_argument("--csv_path", type=str, default=None, help="Optional path to custom candidate CSV")
+    parser.add_argument("--admin_email", type=str, default=None, help="Email of requesting administrator")
     parser.add_argument("--build-cache", action="store_true", help="Precompute and cache all domains")
     args = parser.parse_args()
 
@@ -339,7 +375,7 @@ def main():
         print(json.dumps({"status": "success", "cached_domains": list(data["domains"].keys())}))
         return
 
-    result = get_ranked_candidates(args.domain, args.top_n, csv_path=args.csv_path)
+    result = get_ranked_candidates(args.domain, args.top_n, csv_path=args.csv_path, admin_email=args.admin_email)
     print(json.dumps(result, ensure_ascii=False))
 
 if __name__ == "__main__":

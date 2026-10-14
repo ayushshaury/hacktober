@@ -617,8 +617,9 @@ router.get('/my-clubs', authenticateToken, requireRole('club_admin'), async (req
 router.get('/admins', authenticateToken, requireRole('club_admin'), async (req, res) => {
   try {
     const db = await getDb();
+    const isMasterAdmin = (req.user?.email || '').toLowerCase().trim() === 'hncc.admin@bitsindri.ac.in';
     const admins = await db.all(
-      `SELECT u.id, u.name, u.email, u.created_at, ca.club_id, ca.created_at as assigned_at,
+      `SELECT u.id, u.name, u.email, u.phone, u.created_at, ca.club_id, ca.created_at as assigned_at,
               c.name as club_name, c.slug as club_slug
        FROM club_admins ca
        JOIN users u ON ca.user_id = u.id
@@ -627,7 +628,22 @@ router.get('/admins', authenticateToken, requireRole('club_admin'), async (req, 
        ORDER BY u.name ASC`,
       req.user.club_ids || []
     );
-    res.json({ count: admins.length, admins });
+
+    // Only hncc.admin@bitsindri.ac.in can see all details of other admins.
+    // Other admins can only see names of other admins, with emails and phones masked/hidden.
+    const sanitizedAdmins = admins.map(a => {
+      if (isMasterAdmin || a.id === req.user.id) {
+        return a;
+      }
+      return {
+        ...a,
+        email: 'Protected (Hidden)',
+        phone: null,
+        is_protected: true
+      };
+    });
+
+    res.json({ count: sanitizedAdmins.length, admins: sanitizedAdmins, isMasterAdmin });
   } catch (err) {
     console.error('Error fetching admins:', err);
     res.status(500).json({ error: 'Failed to retrieve admins' });
@@ -636,6 +652,13 @@ router.get('/admins', authenticateToken, requireRole('club_admin'), async (req, 
 
 // POST /api/admin/admins - Create (or link) a club admin for one of my clubs
 router.post('/admins', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  const isMasterAdmin = (req.user?.email || '').toLowerCase().trim() === 'hncc.admin@bitsindri.ac.in';
+  if (!isMasterAdmin) {
+    return res.status(403).json({
+      error: 'Forbidden: Only the master administrator (hncc.admin@bitsindri.ac.in) has authority to create or grant access to club admins.'
+    });
+  }
+
   const { name, email, password } = req.body;
   const rawClubId = req.body.club_id ?? req.query.club_id;
 
@@ -704,6 +727,13 @@ router.post('/admins', authenticateToken, requireRole('club_admin'), async (req,
 
 // DELETE /api/admin/admins/:userId - Remove an admin assignment from one of my clubs
 router.delete('/admins/:userId', authenticateToken, requireRole('club_admin'), async (req, res) => {
+  const isMasterAdmin = (req.user?.email || '').toLowerCase().trim() === 'hncc.admin@bitsindri.ac.in';
+  if (!isMasterAdmin) {
+    return res.status(403).json({
+      error: 'Forbidden: Only the master administrator (hncc.admin@bitsindri.ac.in) has authority to remove club admins.'
+    });
+  }
+
   const userId = parseInt(req.params.userId);
   const rawClubId = req.body.club_id ?? req.query.club_id;
   const targetClubId = rawClubId ? parseInt(rawClubId) : (req.user.club_ids || [])[0];
@@ -756,6 +786,32 @@ function canAccessHnccModel(user) {
   return false;
 }
 
+function hashPhoneNumber(phone) {
+  if (!phone || String(phone).trim() === 'N/A' || String(phone).trim() === 'nan') return 'N/A';
+  let clean = String(phone).trim();
+  let prefix = '';
+  if (clean.startsWith('+91')) {
+    prefix = '+91 ';
+    clean = clean.slice(3).trim();
+  } else if (clean.startsWith('+')) {
+    prefix = clean.slice(0, 3) + ' ';
+    clean = clean.slice(3).trim();
+  }
+  const digits = clean.replace(/\D/g, '');
+  if (digits.length >= 4) {
+    return prefix + '*'.repeat(Math.max(6, digits.length - 4)) + digits.slice(-4);
+  }
+  return prefix + '******';
+}
+
+function maskCandidateName(name) {
+  if (!name || String(name).trim() === 'N/A' || String(name).trim() === 'nan' || String(name).trim() === 'Anonymous') return 'Anonymous';
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'Anonymous';
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return `${parts[0][0].toUpperCase()}${parts[parts.length - 1][0].toUpperCase()}`;
+}
+
 /**
  * POST /api/admin/hncc/candidate-ranking
  * Evaluates and ranks candidates across CP / DSA, Web Development, and AI / ML
@@ -799,10 +855,14 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
       });
     }
 
+    const viewerEmail = (req.user?.email || '').toLowerCase().trim();
+    const isMasterAdmin = viewerEmail === 'hncc.admin@bitsindri.ac.in';
+
     // IF an uploaded CSV file is provided, compute dynamically using the custom CSV
+    // (Phone numbers are NEVER hashed for custom user CSV input)
     if (uploadedFilePath) {
       const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
-      execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--csv_path', uploadedFilePath], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+      execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--csv_path', uploadedFilePath, '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
         cleanupFile();
         if (err) {
           console.error('Python execution error on custom CSV:', err, stderr);
@@ -836,6 +896,8 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
         if (data.domains && data.domains[domain]) {
           const candidates = data.domains[domain].slice(0, count).map((c, i) => ({
             ...c,
+            candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
+            phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number,
             rank: i + 1
           }));
           return res.json({
@@ -854,20 +916,25 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
 
     // Fallback: execute python model script directly on default dataset
     const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
-    execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString()], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         console.error('Python execution error:', err, stderr);
         return res.status(500).json({ error: 'Failed to run AI ranking model on server.' });
       }
       try {
         const result = JSON.parse(stdout);
+        const candidates = (result.candidates || []).map(c => ({
+          ...c,
+          candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
+          phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number
+        }));
         return res.json({
           status: 'success',
           domain,
           top_n: count,
           total_available: result.total_available,
           custom_source: false,
-          candidates: result.candidates
+          candidates
         });
       } catch (parseErr) {
         console.error('Failed to parse Python script output:', stdout, parseErr);
@@ -893,6 +960,8 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
 
     const domain = req.query.domain || 'Web Development';
     const top_n = parseInt(req.query.top_n || '10', 10);
+    const viewerEmail = (req.user?.email || '').toLowerCase().trim();
+    const isMasterAdmin = viewerEmail === 'hncc.admin@bitsindri.ac.in';
 
     const cachePath = path.resolve(process.cwd(), 'src/data/hncc_ranked_cache.json');
     if (fs.existsSync(cachePath)) {
@@ -902,6 +971,8 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
         if (data.domains && data.domains[domain]) {
           const candidates = data.domains[domain].slice(0, top_n).map((c, i) => ({
             ...c,
+            candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
+            phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number,
             rank: i + 1
           }));
           return res.json({
@@ -918,19 +989,24 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
     }
 
     const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
-    execFile('python', [scriptPath, '--domain', domain, '--top_n', top_n.toString()], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile('python', [scriptPath, '--domain', domain, '--top_n', top_n.toString(), '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         console.error('Python execution error:', err, stderr);
         return res.status(500).json({ error: 'Failed to run AI ranking model.' });
       }
       try {
         const result = JSON.parse(stdout);
+        const candidates = (result.candidates || []).map(c => ({
+          ...c,
+          candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
+          phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number
+        }));
         return res.json({
           status: 'success',
           domain,
           top_n,
           total_available: result.total_available,
-          candidates: result.candidates
+          candidates
         });
       } catch (parseErr) {
         console.error('Parse error:', stdout, parseErr);

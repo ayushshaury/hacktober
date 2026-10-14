@@ -5,9 +5,11 @@ import {
   Plus, Trash2, CheckCircle2, ShieldCheck, Eye, Users, ToggleLeft, 
   ToggleRight, AlertCircle, FileSpreadsheet, UserCheck, Search, 
   Filter, ChevronDown, ChevronUp, EyeOff, Globe, Phone, Mail, 
-  UserPlus, Pencil, Award, ExternalLink
+  UserPlus, Pencil, Award, ExternalLink, Sparkles, Lock, ShieldAlert
 } from 'lucide-react';
 import { ImageUploader } from '../components/ImageUploader';
+import { HnccCandidateRanking } from '../components/HnccCandidateRanking';
+
 
 export const AdminDashboard = () => {
   const { user, token } = useAuth();
@@ -18,15 +20,24 @@ export const AdminDashboard = () => {
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
 
+  // Master admin check: only hncc.admin@bitsindri.ac.in can add/remove admins and view full admin details
+  const isMasterAdmin = (user?.email || '').toLowerCase().trim() === 'hncc.admin@bitsindri.ac.in';
+
   // Multi-club admin: active club switcher
   const [myClubs, setMyClubs] = useState([]);
-  const [activeClubId, setActiveClubId] = useState(null);
+  const [activeClubId, setActiveClubId] = useState(user?.club_id || (user?.club_ids && user.club_ids[0]) || null);
 
   const withClub = (url) => {
     if (!activeClubId) return url;
     return `${url}${url.includes('?') ? '&' : '?'}club_id=${activeClubId}`;
   };
-  const apiFetch = (url, options = {}) => fetch(withClub(url), options);
+  const apiFetch = (url, options = {}) => {
+    const headers = {
+      ...(options.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+    return fetch(withClub(url), { ...options, headers });
+  };
 
   // Members tab state
   const [members, setMembers] = useState([]);
@@ -91,12 +102,25 @@ export const AdminDashboard = () => {
   const [eventRegUrl, setEventRegUrl] = useState('');
   const [eventImageUrl, setEventImageUrl] = useState('');
 
+  // Event edit and management state
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [showEventEditModal, setShowEventEditModal] = useState(false);
+  const [eventEditForm, setEventEditForm] = useState({
+    title: '',
+    description: '',
+    event_date: '',
+    start_time: '',
+    end_time: '',
+    venue: '',
+    registration_url: '',
+    image_url: '',
+    status: 'Published'
+  });
+
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/admin/my-club', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch('/api/admin/my-club');
       const resData = await res.json();
 
       if (!res.ok) throw new Error(resData.error || 'Failed to load admin workspace');
@@ -108,14 +132,17 @@ export const AdminDashboard = () => {
       setRecruitmentOpen(resData.club.recruitment_open === 1);
       setLogoUrl(resData.club.logo_url || '');
 
-      // Fetch Form Builder questions
-      const formRes = await apiFetch('/api/induction/admin/form', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const formData = await formRes.json();
-      if (formData.questions) setQuestions(formData.questions);
+      // Fetch Form Builder questions safely
+      try {
+        const formRes = await apiFetch('/api/induction/admin/form');
+        const formData = await formRes.json();
+        if (formData.questions) setQuestions(formData.questions);
+      } catch (formErr) {
+        console.warn('Form questions notice:', formErr);
+      }
 
     } catch (err) {
+      console.error('fetchAdminData error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -158,22 +185,37 @@ export const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    if (!token) return;
+    if (!activeClubId && (user?.club_id || (user?.club_ids && user.club_ids[0]))) {
+      setActiveClubId(user.club_id || user.club_ids[0]);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    let isMounted = true;
     (async () => {
       try {
         const res = await apiFetch('/api/admin/my-clubs');
         const resData = await res.json();
         const clubs = resData.clubs || [];
-        setMyClubs(clubs);
-        if (clubs.length && !activeClubId) setActiveClubId(clubs[0].id);
+        if (isMounted) {
+          setMyClubs(clubs);
+          if (clubs.length && !activeClubId) {
+            setActiveClubId(clubs[0].id);
+          }
+        }
       } catch (err) {
         console.error('Error loading assigned clubs:', err);
       }
     })();
+    return () => { isMounted = false; };
   }, [token]);
 
   useEffect(() => {
-    if (token && activeClubId) {
+    if (token) {
       fetchAdminData();
       fetchMembers();
       fetchAdmins();
@@ -206,6 +248,10 @@ export const AdminDashboard = () => {
   const handleAddAdmin = async (e) => {
     e.preventDefault();
     setAdminMsg('');
+    if (!isMasterAdmin) {
+      setAdminMsg('Forbidden: Only hncc.admin@bitsindri.ac.in is authorized to grant admin access.');
+      return;
+    }
     try {
       const res = await apiFetch('/api/admin/admins', {
         method: 'POST',
@@ -228,6 +274,10 @@ export const AdminDashboard = () => {
   };
 
   const handleRemoveAdmin = async (userId) => {
+    if (!isMasterAdmin) {
+      alert('Forbidden: Only hncc.admin@bitsindri.ac.in is authorized to remove club admins.');
+      return;
+    }
     if (!window.confirm('Remove this admin access?')) return;
     try {
       const res = await apiFetch(`/api/admin/admins/${userId}`, {
@@ -548,10 +598,76 @@ export const AdminDashboard = () => {
         setEventVenue('BIT Sindri Campus');
         setEventRegUrl('');
         setEventImageUrl('');
+        setMsg('New event published successfully!');
         fetchAdminData();
+      } else {
+        const errJson = await res.json();
+        setError(errJson.error || 'Failed to create event');
       }
     } catch (err) {
       console.error('Error creating event:', err);
+      setError('Error creating event: ' + err.message);
+    }
+  };
+
+  const handleOpenEditEvent = (ev) => {
+    setEditingEvent(ev);
+    setEventEditForm({
+      title: ev.title || '',
+      description: ev.description || '',
+      event_date: ev.event_date ? ev.event_date.split('T')[0] : '',
+      start_time: ev.start_time || '',
+      end_time: ev.end_time || '',
+      venue: ev.venue || 'BIT Sindri Campus',
+      registration_url: ev.registration_url || '',
+      image_url: ev.image_url || '',
+      status: ev.status || 'Published'
+    });
+    setShowEventEditModal(true);
+  };
+
+  const handleUpdateEvent = async (e) => {
+    e.preventDefault();
+    if (!editingEvent) return;
+    setActionLoading(true);
+    try {
+      const res = await apiFetch(`/api/events/${editingEvent.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(eventEditForm)
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to update event');
+      setMsg('Event updated successfully!');
+      setShowEventEditModal(false);
+      setEditingEvent(null);
+      fetchAdminData();
+    } catch (err) {
+      setError(err.message || 'Error updating event');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId, eventTitle) => {
+    if (!window.confirm(`Are you sure you want to delete event "${eventTitle}"? This action cannot be undone.`)) return;
+    setActionLoading(true);
+    try {
+      const res = await apiFetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to delete event');
+      setMsg('Event removed successfully');
+      fetchAdminData();
+    } catch (err) {
+      setError(err.message || 'Error deleting event');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -622,14 +738,26 @@ export const AdminDashboard = () => {
     }
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'TBD';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
-    <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', paddingBottom: '80px' }} className="animate-fade-in">
+    <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px' }} className="animate-fade-in">
       
-      {/* Header Banner (Apple Style Frosted Banner) */}
+      {/* Header Banner */}
       <div style={{ 
-        backgroundColor: '#FFFFFF', 
-        borderBottom: '1px solid rgba(0,0,0,0.06)', 
-        padding: '44px 0 32px 0' 
+        backgroundColor: '#0c141c', 
+        borderBottom: '1px solid var(--border-gold-dim)', 
+        padding: '36px 0 28px 0',
+        backgroundImage: 'linear-gradient(to bottom, #0c141c 0%, #070c10 100%)'
       }}>
         <div className="container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
@@ -638,23 +766,23 @@ export const AdminDashboard = () => {
                 <img 
                   src={data.logo_url.startsWith('/uploads') ? `${data.logo_url}` : data.logo_url}
                   alt={data.name}
-                  style={{ width: '56px', height: '56px', borderRadius: '16px', objectFit: 'cover', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                  style={{ width: '56px', height: '56px', border: '1px solid var(--border-gold)', objectFit: 'cover', boxShadow: '2px 2px 0px #8a7329' }}
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
               ) : null}
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="badge badge-technical">
-                    <ShieldCheck size={14} /> Official Club Workspace
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="badge-pixel gold">
+                    <ShieldCheck size={13} style={{ marginRight: '4px' }} /> OFFICIAL WORKSPACE
                   </span>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>Code: {data.club_code}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--color-gold)', letterSpacing: '0.04em' }}>CODE: {data.club_code}</span>
                 </div>
-                <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '6px', letterSpacing: '-0.025em' }}>
+                <h1 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.9rem', color: 'var(--color-gold)', marginTop: '8px', letterSpacing: '0.04em', textShadow: '0 0 10px rgba(243, 208, 99, 0.3)' }}>
                   {data.name}
                 </h1>
                 {myClubs.length > 1 && (
                   <select
-                    className="input"
+                    className="pixel-input"
                     value={activeClubId || ''}
                     onChange={(e) => setActiveClubId(parseInt(e.target.value))}
                     style={{ marginTop: '8px', maxWidth: '320px', fontWeight: 600 }}
@@ -668,42 +796,40 @@ export const AdminDashboard = () => {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <span className="badge" style={{ 
-                backgroundColor: recruitmentOpen ? '#E6F4EA' : '#F8FAFC',
-                color: recruitmentOpen ? '#137333' : '#64748B',
-                border: recruitmentOpen ? '1px solid #CEEAD6' : '1px solid #E2E8F0',
-                padding: '8px 16px',
-                fontSize: '0.86rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
+              <span className="badge-pixel" style={{ 
+                backgroundColor: recruitmentOpen ? 'var(--color-mint-dim)' : 'var(--color-coral-dim)',
+                color: recruitmentOpen ? 'var(--color-mint)' : 'var(--color-coral)',
+                border: recruitmentOpen ? '1px solid rgba(74, 222, 128, 0.4)' : '1px solid rgba(240, 113, 103, 0.4)',
+                padding: '8px 14px',
+                fontSize: '0.78rem',
+                fontFamily: 'var(--font-mono)'
               }}>
                 <span style={{ 
                   width: '8px', 
                   height: '8px', 
-                  borderRadius: '50%', 
-                  backgroundColor: recruitmentOpen ? '#137333' : '#94A3B8',
-                  display: 'inline-block' 
+                  backgroundColor: recruitmentOpen ? 'var(--color-mint)' : 'var(--color-coral)',
+                  display: 'inline-block',
+                  marginRight: '6px',
+                  boxShadow: recruitmentOpen ? '0 0 6px var(--color-mint)' : '0 0 6px var(--color-coral)'
                 }} />
-                Induction Form: {recruitmentOpen ? 'OPEN' : 'CLOSED'}
+                INDUCTION FORM: {recruitmentOpen ? 'OPEN' : 'CLOSED'}
               </span>
 
               <button
                 type="button"
                 onClick={handleToggleInductionStatus}
                 disabled={actionLoading}
-                className={`btn ${recruitmentOpen ? 'btn-secondary' : 'btn-primary'}`}
+                className={recruitmentOpen ? "btn-pixel-outline" : "btn-pixel-gold"}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                   padding: '9px 18px',
-                  fontSize: '0.84rem'
+                  fontSize: '0.82rem'
                 }}
               >
-                {recruitmentOpen ? <ToggleRight size={18} color="#137333" /> : <ToggleLeft size={18} />}
-                {recruitmentOpen ? 'Close Induction Form' : 'Open Induction Form'}
+                {recruitmentOpen ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                {recruitmentOpen ? 'CLOSE INDUCTION FORM' : 'OPEN INDUCTION FORM'}
               </button>
             </div>
           </div>
@@ -715,45 +841,45 @@ export const AdminDashboard = () => {
         
         {/* Feedback / Alert Banners */}
         {msg && (
-          <div style={{ backgroundColor: '#E6F4EA', color: '#137333', border: '1px solid #CEEAD6', padding: '12px 18px', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600 }}>
+          <div style={{ backgroundColor: 'rgba(74, 222, 128, 0.15)', color: 'var(--color-mint)', border: '1px solid var(--color-mint)', padding: '12px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.88rem', fontFamily: 'var(--font-mono)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CheckCircle2 size={16} /> {msg}
             </div>
-            <button type="button" onClick={() => setMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#137333', fontWeight: 700 }}>✕</button>
+            <button type="button" onClick={() => setMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-mint)', fontWeight: 700 }}>✕</button>
           </div>
         )}
         {error && (
-          <div style={{ backgroundColor: '#FCE8E6', color: '#C5221F', border: '1px solid #FAD2CF', padding: '12px 18px', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 600 }}>
+          <div style={{ backgroundColor: 'rgba(240, 113, 103, 0.15)', color: 'var(--color-coral)', border: '1px solid var(--color-coral)', padding: '12px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.88rem', fontFamily: 'var(--font-mono)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertCircle size={16} /> {error}
             </div>
-            <button type="button" onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5221F', fontWeight: 700 }}>✕</button>
+            <button type="button" onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-coral)', fontWeight: 700 }}>✕</button>
           </div>
         )}
 
-        {/* Apple Style Pill Navigation Tabs */}
+        {/* Retro Tab Navigation Strip */}
         <div style={{ 
           display: 'flex', 
           gap: '6px', 
-          background: 'rgba(245, 245, 247, 0.7)', 
-          padding: '5px', 
-          borderRadius: '999px', 
-          border: '1px solid rgba(0,0,0,0.05)', 
+          backgroundColor: '#080d12', 
+          padding: '6px', 
+          border: '1px solid var(--border-card)', 
           marginBottom: '32px', 
           overflowX: 'auto',
-          width: 'fit-content',
-          maxWidth: '100%'
+          maxWidth: '100%',
+          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.6)'
         }}>
           {[
-            { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-            { id: 'members', label: `Members (${data.stats?.members ?? members.length ?? 0})`, icon: Users },
-            { id: 'applicants', label: `Applicants (${data.stats?.applications || 0})`, icon: UserCheck },
-            { id: 'admins', label: `Admins (${admins.filter(a => a.club_id === activeClubId).length})`, icon: ShieldCheck },
-            { id: 'profile', label: 'Club Profile & Picture', icon: Edit3 },
-            { id: 'form-builder', label: 'Induction Form Builder', icon: FileSpreadsheet },
-            { id: 'events', label: `Events (${data.events?.length || 0})`, icon: Calendar },
-            { id: 'social', label: 'Social Links', icon: LinkIcon },
-            { id: 'announcements', label: 'Announcements', icon: Megaphone }
+            { id: 'overview', label: 'OVERVIEW', icon: LayoutDashboard },
+            { id: 'members', label: `MEMBERS (${data.stats?.members ?? members.length ?? 0})`, icon: Users },
+            { id: 'applicants', label: `APPLICANTS (${data.stats?.applications || 0})`, icon: UserCheck },
+            ...(data?.slug === 'hncc' || user?.club_slug === 'hncc' || user?.email?.includes('hncc') ? [{ id: 'ai-ranking', label: '★ AI SHORTLISTING', icon: Sparkles }] : []),
+            { id: 'admins', label: `ADMINS (${admins.filter(a => a.club_id === activeClubId).length})`, icon: ShieldCheck },
+            { id: 'profile', label: 'CLUB PROFILE', icon: Edit3 },
+            { id: 'form-builder', label: 'FORM BUILDER', icon: FileSpreadsheet },
+            { id: 'events', label: `EVENTS (${data.events?.length || 0})`, icon: Calendar },
+            { id: 'social', label: 'SOCIAL LINKS', icon: LinkIcon },
+            { id: 'announcements', label: 'ANNOUNCEMENTS', icon: Megaphone }
           ].map(tab => {
             const IconComponent = tab.icon;
             const isSel = activeTab === tab.id;
@@ -764,18 +890,19 @@ export const AdminDashboard = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '7px 16px',
-                  borderRadius: '999px',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  border: 'none',
-                  backgroundColor: isSel ? '#0071E3' : 'transparent',
-                  color: isSel ? '#FFFFFF' : 'var(--text-muted)',
-                  boxShadow: isSel ? '0 2px 8px rgba(0, 113, 227, 0.25)' : 'none',
+                  gap: '8px',
+                  padding: '9px 16px',
+                  fontFamily: 'var(--font-pixel)',
+                  fontSize: '0.86rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  border: isSel ? '1px solid #d4b54e' : '1px solid transparent',
+                  backgroundColor: isSel ? 'var(--color-gold)' : 'transparent',
+                  color: isSel ? 'var(--text-dark)' : 'var(--text-muted)',
+                  boxShadow: isSel ? '2px 2px 0px #8a7329' : 'none',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
-                  transition: 'var(--transition-smooth)'
+                  transition: 'all 0.15s ease'
                 }}
               >
                 <IconComponent size={14} /> {tab.label}
@@ -787,45 +914,45 @@ export const AdminDashboard = () => {
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '22px', marginBottom: '32px' }}>
-              <div className="glass-panel" style={{ padding: '28px' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-light)', fontWeight: 700, letterSpacing: '0.04em' }}>TOTAL PROFILE VIEWS</div>
-                <div style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '6px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+              <div className="pixel-card pixel-corner-mark" style={{ padding: '24px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.06em' }}>TOTAL PROFILE VIEWS</div>
+                <div style={{ fontFamily: 'var(--font-pixel)', fontSize: '2.5rem', fontWeight: 800, color: 'var(--color-cyan)', marginTop: '6px', textShadow: '0 0 10px rgba(56, 189, 248, 0.35)' }}>
                   {data.stats?.views || 0}
                 </div>
               </div>
 
-              <div className="glass-panel" style={{ padding: '28px' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-light)', fontWeight: 700, letterSpacing: '0.04em' }}>TOTAL APPLICANTS</div>
-                <div style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--color-secondary)', marginTop: '6px' }}>
+              <div className="pixel-card pixel-corner-mark" style={{ padding: '24px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.06em' }}>TOTAL APPLICANTS</div>
+                <div style={{ fontFamily: 'var(--font-pixel)', fontSize: '2.5rem', fontWeight: 800, color: 'var(--color-coral)', marginTop: '6px', textShadow: '0 0 10px rgba(240, 113, 103, 0.35)' }}>
                   {data.stats?.applications || 0}
                 </div>
               </div>
 
-              <div className="glass-panel" style={{ padding: '28px' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-light)', fontWeight: 700, letterSpacing: '0.04em' }}>TOTAL CLUB MEMBERS</div>
-                <div style={{ fontSize: '2.4rem', fontWeight: 800, color: '#7928CA', marginTop: '6px' }}>
+              <div className="pixel-card pixel-corner-mark" style={{ padding: '24px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.06em' }}>TOTAL CLUB MEMBERS</div>
+                <div style={{ fontFamily: 'var(--font-pixel)', fontSize: '2.5rem', fontWeight: 800, color: 'var(--color-purple)', marginTop: '6px', textShadow: '0 0 10px rgba(192, 132, 252, 0.35)' }}>
                   {data.stats?.members ?? members.length ?? 0}
                 </div>
               </div>
 
-              <div className="glass-panel" style={{ padding: '28px' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-light)', fontWeight: 700, letterSpacing: '0.04em' }}>PUBLISHED EVENTS</div>
-                <div style={{ fontSize: '2.4rem', fontWeight: 800, color: '#137333', marginTop: '6px' }}>
+              <div className="pixel-card pixel-corner-mark" style={{ padding: '24px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.06em' }}>PUBLISHED EVENTS</div>
+                <div style={{ fontFamily: 'var(--font-pixel)', fontSize: '2.5rem', fontWeight: 800, color: 'var(--color-mint)', marginTop: '6px', textShadow: '0 0 10px rgba(74, 222, 128, 0.35)' }}>
                   {data.stats?.events || 0}
                 </div>
               </div>
             </div>
 
-            <div className="glass-panel" style={{ padding: '32px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '14px' }}>
+            <div className="pixel-card pixel-corner-mark" style={{ padding: '28px' }}>
+              <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.25rem', color: 'var(--color-gold)', marginBottom: '14px', letterSpacing: '0.04em' }}>
                 Club Category & Profile Summary
               </h3>
-              <p style={{ color: 'var(--text-body)', fontSize: '0.94rem', marginBottom: '14px' }}>
-                <strong>Category:</strong> {data.category}
+              <p style={{ color: 'var(--text-cream)', fontSize: '0.9rem', marginBottom: '12px' }}>
+                <strong style={{ color: 'var(--color-gold)' }}>Category:</strong> {data.category}
               </p>
-              <p style={{ color: 'var(--text-body)', fontSize: '0.94rem', lineHeight: 1.7 }}>
-                <strong>Short Description:</strong> {data.short_description}
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.7 }}>
+                <strong style={{ color: 'var(--color-gold)' }}>Short Description:</strong> {data.short_description}
               </p>
             </div>
           </div>
@@ -837,10 +964,10 @@ export const AdminDashboard = () => {
             {/* Header with Title and Add Member CTA */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
               <div>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                  Club Members & Leadership Roster
+                <h2 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.45rem', color: 'var(--color-gold)', letterSpacing: '0.04em' }}>
+                  CLUB MEMBERS & LEADERSHIP ROSTER
                 </h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '4px' }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', marginTop: '4px' }}>
                   Manage active student members, leadership team, coordinators, and alumni with full profiles.
                 </p>
               </div>
@@ -848,15 +975,8 @@ export const AdminDashboard = () => {
               <button
                 type="button"
                 onClick={handleOpenAddMember}
-                className="btn btn-primary"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 20px',
-                  fontSize: '0.88rem',
-                  boxShadow: '0 4px 14px rgba(0, 113, 227, 0.25)'
-                }}
+                className="btn-pixel-gold"
+                style={{ padding: '10px 20px', fontSize: '0.86rem' }}
               >
                 <UserPlus size={16} /> Add Club Member
               </button>
@@ -864,30 +984,30 @@ export const AdminDashboard = () => {
 
             {/* Quick Stat Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-              <div className="glass-panel" style={{ padding: '18px 22px' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Members</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '4px' }}>
+              <div className="pixel-card pixel-corner-mark" style={{ padding: '18px 22px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total Members</div>
+                <div style={{ fontFamily: 'var(--font-pixel)', fontSize: '2rem', fontWeight: 800, color: 'var(--text-cream)', marginTop: '4px' }}>
                   {members.length}
                 </div>
               </div>
-              <div className="glass-panel" style={{ padding: '18px 22px' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#137333', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Members</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#137333', marginTop: '4px' }}>
+              <div className="pixel-card pixel-corner-mark" style={{ padding: '18px 22px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-mint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Active Members</div>
+                <div style={{ fontFamily: 'var(--font-pixel)', fontSize: '2rem', fontWeight: 800, color: 'var(--color-mint)', marginTop: '4px' }}>
                   {members.filter(m => m.status === 'Active').length}
                 </div>
               </div>
-              <div className="glass-panel" style={{ padding: '18px 22px' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0066CC', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Executive Leads</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0066CC', marginTop: '4px' }}>
+              <div className="pixel-card pixel-corner-mark" style={{ padding: '18px 22px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-cyan)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Executive Leads</div>
+                <div style={{ fontFamily: 'var(--font-pixel)', fontSize: '2rem', fontWeight: 800, color: 'var(--color-cyan)', marginTop: '4px' }}>
                   {members.filter(m => {
                     const p = (m.position || '').toLowerCase();
                     return p.includes('lead') || p.includes('president') || p.includes('head') || p.includes('secretary');
                   }).length}
                 </div>
               </div>
-              <div className="glass-panel" style={{ padding: '18px 22px' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#7928CA', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Alumni</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#7928CA', marginTop: '4px' }}>
+              <div className="pixel-card pixel-corner-mark" style={{ padding: '18px 22px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-purple)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Alumni</div>
+                <div style={{ fontFamily: 'var(--font-pixel)', fontSize: '2rem', fontWeight: 800, color: 'var(--color-purple)', marginTop: '4px' }}>
                   {members.filter(m => m.status === 'Alumni').length}
                 </div>
               </div>
@@ -899,55 +1019,42 @@ export const AdminDashboard = () => {
                 <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   type="text"
-                  className="input"
-                  style={{ paddingLeft: '40px', borderRadius: '999px' }}
+                  className="pixel-input"
+                  style={{ paddingLeft: '40px' }}
                   placeholder="Search by name, email, phone, position..."
                   value={memberSearch}
                   onChange={e => setMemberSearch(e.target.value)}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginRight: '4px' }}>Status:</span>
-                {['All', 'Active', 'Alumni', 'Inactive'].map(st => {
-                  const isSel = memberStatusFilter === st;
-                  return (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() => setMemberStatusFilter(st)}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: '999px',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        border: isSel ? 'none' : '1px solid rgba(226, 232, 240, 0.9)',
-                        backgroundColor: isSel ? '#0071E3' : '#FFFFFF',
-                        color: isSel ? '#FFFFFF' : 'var(--text-body)',
-                        cursor: 'pointer',
-                        transition: 'var(--transition-smooth)'
-                      }}
-                    >
-                      {st}
-                    </button>
-                  );
-                })}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 700, marginRight: '4px' }}>STATUS:</span>
+                {['All', 'Active', 'Alumni', 'Inactive'].map(st => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setMemberStatusFilter(st)}
+                    className={`filter-btn ${memberStatusFilter === st ? 'active' : ''}`}
+                  >
+                    {st}
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Members Roster Table */}
-            <div className="glass-panel" style={{ overflow: 'hidden' }}>
+            <div className="pixel-card" style={{ padding: 0, overflow: 'hidden' }}>
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table className="retro-table">
                   <thead>
                     <tr>
-                      <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Member Profile</th>
-                      <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Position / Role</th>
-                      <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Contact Information</th>
-                      <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Dept & Batch</th>
-                      <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Joined Date</th>
-                      <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</th>
-                      <th style={{ padding: '14px 18px', textAlign: 'right', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Actions</th>
+                      <th style={{ width: '24%' }}>Member Profile</th>
+                      <th style={{ width: '16%' }}>Position / Role</th>
+                      <th style={{ width: '22%' }}>Contact Information</th>
+                      <th style={{ width: '13%' }}>Dept & Batch</th>
+                      <th style={{ width: '11%' }}>Joined Date</th>
+                      <th style={{ width: '7%' }}>Status</th>
+                      <th style={{ width: '7%', textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -960,15 +1067,15 @@ export const AdminDashboard = () => {
                     ) : members.length === 0 ? (
                       <tr>
                         <td colSpan={7} style={{ textAlign: 'center', padding: '54px 24px', color: 'var(--text-muted)' }}>
-                          <Users size={36} color="var(--text-light)" style={{ marginBottom: '12px' }} />
-                          <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)' }}>No club members found</div>
-                          <div style={{ fontSize: '0.85rem', marginTop: '4px', marginBottom: '16px' }}>
+                          <Users size={36} color="var(--border-gold)" style={{ marginBottom: '12px' }} />
+                          <div style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.1rem', color: 'var(--text-cream)' }}>NO CLUB MEMBERS FOUND</div>
+                          <div style={{ fontSize: '0.85rem', marginTop: '6px', marginBottom: '18px' }}>
                             {memberSearch ? 'No members match your search criteria.' : 'Add your first member to start managing your club roster.'}
                           </div>
                           <button
                             type="button"
                             onClick={handleOpenAddMember}
-                            className="btn btn-primary"
+                            className="btn-pixel-gold"
                             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem' }}
                           >
                             <UserPlus size={14} /> Add Club Member
@@ -976,112 +1083,87 @@ export const AdminDashboard = () => {
                         </td>
                       </tr>
                     ) : (
-                      members.map(member => {
-                        const posStyle = getPositionBadgeStyle(member.position);
-                        const statusStyle = getMemberStatusStyle(member.status);
-                        return (
-                          <tr key={member.id} style={{ borderBottom: '1px solid rgba(241, 245, 249, 0.8)' }}>
-                            <td style={{ padding: '14px 18px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                {member.avatar_url ? (
-                                  <img
-                                    src={getAvatarSrc(member.avatar_url)}
-                                    alt={member.name}
-                                    style={{ width: '42px', height: '42px', borderRadius: '12px', objectFit: 'cover', border: '1px solid rgba(0,0,0,0.06)' }}
-                                    onError={(e) => { e.target.style.display = 'none'; }}
-                                  />
-                                ) : (
-                                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: '#EBF5FF', color: '#0066CC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '1.1rem' }}>
-                                    {member.name.charAt(0).toUpperCase()}
+                      members.map(member => (
+                        <tr key={member.id}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              {member.avatar_url ? (
+                                <img
+                                  src={getAvatarSrc(member.avatar_url)}
+                                  alt={member.name}
+                                  style={{ width: '40px', height: '40px', border: '1px solid var(--border-gold-dim)', objectFit: 'cover' }}
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              ) : (
+                                <div style={{ width: '40px', height: '40px', border: '1px solid var(--border-card)', backgroundColor: '#080d12', color: 'var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'var(--font-pixel)', fontSize: '1.1rem' }}>
+                                  {member.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <div style={{ fontWeight: 700, color: 'var(--text-cream)', fontSize: '0.92rem' }}>{member.name}</div>
+                                {member.bio && (
+                                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {member.bio}
                                   </div>
                                 )}
-                                <div>
-                                  <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.94rem' }}>{member.name}</div>
-                                  {member.bio && (
-                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                      {member.bio}
-                                    </div>
-                                  )}
-                                </div>
                               </div>
-                            </td>
-                            <td style={{ padding: '14px 18px' }}>
-                              <span style={{
-                                display: 'inline-block',
-                                padding: '4px 10px',
-                                borderRadius: '999px',
-                                fontSize: '0.78rem',
-                                fontWeight: 700,
-                                backgroundColor: posStyle.bg,
-                                color: posStyle.text,
-                                border: `1px solid ${posStyle.border}`
-                              }}>
-                                {member.position}
-                              </span>
-                            </td>
-                            <td style={{ padding: '14px 18px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                {member.email && (
-                                  <a href={`mailto:${member.email}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem', color: 'var(--color-secondary)', fontWeight: 500, textDecoration: 'none' }}>
-                                    <Mail size={13} /> {member.email}
-                                  </a>
-                                )}
-                                {member.phone && (
-                                  <a href={`tel:${member.phone}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: 'var(--text-muted)', textDecoration: 'none' }}>
-                                    <Phone size={13} /> {member.phone}
-                                  </a>
-                                )}
-                              </div>
-                            </td>
-                            <td style={{ padding: '14px 18px' }}>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>{member.department || 'N/A'}</div>
-                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>{member.batch_year || '—'}</div>
-                            </td>
-                            <td style={{ padding: '14px 18px', fontSize: '0.85rem', color: 'var(--text-body)' }}>
-                              {formatJoinedDate(member.joined_date)}
-                            </td>
-                            <td style={{ padding: '14px 18px' }}>
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                padding: '4px 10px',
-                                borderRadius: '999px',
-                                fontSize: '0.76rem',
-                                fontWeight: 700,
-                                backgroundColor: statusStyle.bg,
-                                color: statusStyle.text,
-                                border: `1px solid ${statusStyle.border}`
-                              }}>
-                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: statusStyle.text }} />
-                                {member.status}
-                              </span>
-                            </td>
-                            <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditMember(member)}
-                                  className="btn btn-secondary"
-                                  title="Edit member"
-                                  style={{ padding: '6px 10px', borderRadius: '8px' }}
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteMember(member.id, member.name)}
-                                  className="btn btn-secondary"
-                                  title="Remove member"
-                                  style={{ padding: '6px 10px', borderRadius: '8px', color: '#DC2626' }}
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
+                            </div>
+                          </td>
+                          <td>
+                            <span className="badge-pixel gold">
+                              {member.position}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {member.email && (
+                                <a href={`mailto:${member.email}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: 'var(--color-gold)', textDecoration: 'none' }}>
+                                  <Mail size={12} /> {member.email}
+                                </a>
+                              )}
+                              {member.phone && (
+                                <a href={`tel:${member.phone}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'none' }}>
+                                  <Phone size={12} /> {member.phone}
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-cream)' }}>{member.department || 'N/A'}</div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '2px' }}>{member.batch_year || '—'}</div>
+                          </td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                            {formatJoinedDate(member.joined_date)}
+                          </td>
+                          <td>
+                            <span className={`badge-pixel ${member.status === 'Active' ? 'others' : member.status === 'Alumni' ? 'tech' : 'cultural'}`}>
+                              {member.status}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditMember(member)}
+                                className="btn-pixel-outline"
+                                title="Edit member"
+                                style={{ padding: '6px 8px' }}
+                              >
+                                <Pencil size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMember(member.id, member.name)}
+                                className="btn-pixel-outline"
+                                title="Remove member"
+                                style={{ padding: '6px 8px', color: 'var(--color-coral)', borderColor: 'var(--color-coral)' }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
@@ -1090,199 +1172,272 @@ export const AdminDashboard = () => {
           </div>
         )}
 
-        {/* TAB 3: APPLICANTS REVIEW TABLE */}
+        {/* TAB 3: ADMINS */}
         {activeTab === 'admins' && (
           <div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-              Club Admins
+            <h2 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.45rem', color: 'var(--color-gold)', letterSpacing: '0.04em' }}>
+              CLUB ADMINS
             </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '4px', marginBottom: '24px' }}>
-              Admins have full access to the club they are assigned to. You can grant admin access to other members here.
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', marginTop: '4px', marginBottom: '24px' }}>
+              {isMasterAdmin 
+                ? 'Master Administrator Workspace: Grant or revoke admin access and manage administrative assignments across clubs.'
+                : 'View assigned administrators for this club. Only Master Administrator is authorized to grant or remove admin access.'}
             </p>
 
-            <div className="glass-panel" style={{ padding: '22px', marginBottom: '24px', maxWidth: '560px' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '14px' }}>
-                Grant Admin Access
-              </div>
-              <form onSubmit={handleAddAdmin} style={{ display: 'grid', gap: '12px' }}>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Full name (only for new admin)"
-                  value={adminForm.name}
-                  onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
-                />
-                <input
-                  type="email"
-                  className="input"
-                  placeholder="Email address"
-                  value={adminForm.email}
-                  onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
-                  required
-                />
-                <input
-                  type="password"
-                  className="input"
-                  placeholder="Password (only for new admin, min 6 chars)"
-                  value={adminForm.password}
-                  onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                />
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <button type="submit" className="btn btn-primary" style={{ padding: '10px 20px', fontSize: '0.88rem' }}>
-                    <UserPlus size={15} /> Add Admin
-                  </button>
-                  {adminMsg && <span style={{ fontSize: '0.84rem', color: '#0066CC' }}>{adminMsg}</span>}
+            {!isMasterAdmin ? (
+              <div 
+                className="pixel-card pixel-corner-mark" 
+                style={{ 
+                  padding: '18px 22px', 
+                  marginBottom: '24px', 
+                  maxWidth: '680px',
+                  backgroundColor: '#0c141c',
+                  border: '1px solid var(--border-card)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px'
+                }}
+              >
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  backgroundColor: '#070c10',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Lock size={18} color="var(--color-gold)" />
                 </div>
-              </form>
-            </div>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-gold)', letterSpacing: '0.04em' }}>
+                    ADMIN MANAGEMENT RESTRICTED
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
+                    Only Master Administrator can grant new admin access or remove admins. Other administrators have read-only visibility.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="pixel-card pixel-corner-mark" style={{ padding: '24px', marginBottom: '24px', maxWidth: '560px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '16px' }}>
+                  [ GRANT ADMIN ACCESS ]
+                </div>
+                <form onSubmit={handleAddAdmin} style={{ display: 'grid', gap: '14px' }}>
+                  <input
+                    type="text"
+                    className="pixel-input"
+                    placeholder="Full name (only for new admin)"
+                    value={adminForm.name}
+                    onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
+                  />
+                  <input
+                    type="email"
+                    className="pixel-input"
+                    placeholder="Email address"
+                    value={adminForm.email}
+                    onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
+                    required
+                  />
+                  <input
+                    type="password"
+                    className="pixel-input"
+                    placeholder="Password (only for new admin, min 6 chars)"
+                    value={adminForm.password}
+                    onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                  />
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '4px' }}>
+                    <button type="submit" className="btn-pixel-gold" style={{ padding: '10px 22px', fontSize: '0.86rem' }}>
+                      <UserPlus size={15} /> Add Admin
+                    </button>
+                    {adminMsg && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-mint)' }}>{adminMsg}</span>}
+                  </div>
+                </form>
+              </div>
+            )}
 
-            <div className="glass-panel" style={{ overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div className="pixel-card" style={{ padding: 0, overflow: 'hidden' }}>
+              <table className="retro-table">
                 <thead>
-                  <tr>
-                    <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Admin</th>
-                    <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Email</th>
-                    <th style={{ padding: '14px 18px', textAlign: 'left', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Club</th>
-                    <th style={{ padding: '14px 18px', textAlign: 'right', fontSize: '0.78rem', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase' }}>Action</th>
-                  </tr>
+                  {isMasterAdmin ? (
+                    <tr>
+                      <th style={{ width: '28%' }}>Admin</th>
+                      <th style={{ width: '34%' }}>Email Address</th>
+                      <th style={{ width: '24%' }}>Assigned Club</th>
+                      <th style={{ width: '14%', textAlign: 'right' }}>Action</th>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <th style={{ width: '45%' }}>Admin</th>
+                      <th style={{ width: '40%' }}>Assigned Club</th>
+                      <th style={{ width: '15%', textAlign: 'right' }}>Status</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {admins.filter(a => a.club_id === activeClubId).length === 0 && (
                     <tr>
-                      <td colSpan={4} style={{ padding: '22px 18px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                      <td colSpan={isMasterAdmin ? 4 : 3} style={{ padding: '24px 18px', color: 'var(--text-muted)', fontSize: '0.88rem', textAlign: 'center' }}>
                         No admins assigned to this club yet.
                       </td>
                     </tr>
                   )}
-                  {admins.filter(a => a.club_id === activeClubId).map(a => (
-                    <tr key={`${a.id}-${a.club_id}`} style={{ borderTop: '1px solid rgba(226,232,240,0.7)' }}>
-                      <td style={{ padding: '14px 18px', fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-main)' }}>{a.name}</td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.88rem', color: 'var(--text-muted)' }}>{a.email}</td>
-                      <td style={{ padding: '14px 18px', fontSize: '0.88rem', color: 'var(--text-muted)' }}>{a.club_name}</td>
-                      <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                        {a.id !== user.id ? (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAdmin(a.id)}
-                            className="btn btn-secondary"
-                            style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-                          >
-                            <Trash2 size={13} /> Remove
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '0.78rem', color: '#137333', fontWeight: 600 }}>You</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {admins.filter(a => a.club_id === activeClubId).map(a => {
+                    const isSelf = a.id === user?.id;
+                    if (!isMasterAdmin) {
+                      return (
+                        <tr key={`${a.id}-${a.club_id}`}>
+                          <td style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-cream)' }}>
+                            {a.name}
+                          </td>
+                          <td style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>
+                            {a.club_name}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {isSelf ? (
+                              <span className="badge-pixel others">YOU</span>
+                            ) : (
+                              <span className="badge-pixel mint">ACTIVE</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return (
+                      <tr key={`${a.id}-${a.club_id}`}>
+                        <td style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-cream)' }}>{a.name}</td>
+                        <td>
+                          <div>
+                            <span style={{ fontSize: '0.86rem', color: 'var(--color-gold)' }}>{a.email}</span>
+                            {a.phone && (
+                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Phone size={11} color="var(--border-gold)" /> {a.phone}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>{a.club_name}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          {isSelf ? (
+                            <span className="badge-pixel others">YOU</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAdmin(a.id)}
+                              className="btn-pixel-outline"
+                              style={{ padding: '6px 12px', fontSize: '0.76rem', color: 'var(--color-coral)', borderColor: 'var(--color-coral)' }}
+                            >
+                              <Trash2 size={13} /> Remove
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
+        {/* TAB 4: APPLICANTS */}
         {activeTab === 'applicants' && (
           <div>
             <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ position: 'relative', width: '320px' }}>
+              <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
                 <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   type="text"
-                  className="input"
-                  style={{ paddingLeft: '40px', borderRadius: '999px' }}
+                  className="pixel-input"
+                  style={{ paddingLeft: '40px' }}
                   placeholder="Search applicant name..."
                   value={applicantSearch}
                   onChange={e => setApplicantSearch(e.target.value)}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginRight: '4px' }}>Status:</span>
-                {['All', 'Submitted', 'Under Review', 'Shortlisted', 'Selected', 'Rejected', 'Waitlisted'].map(st => {
-                  const isSel = applicantStatusFilter === st;
-                  return (
-                    <button
-                      key={st}
-                      onClick={() => setApplicantStatusFilter(st)}
-                      style={{
-                        padding: '5px 12px',
-                        borderRadius: '999px',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        border: isSel ? 'none' : '1px solid rgba(226, 232, 240, 0.9)',
-                        backgroundColor: isSel ? '#0071E3' : '#FFFFFF',
-                        color: isSel ? '#FFFFFF' : 'var(--text-body)',
-                        cursor: 'pointer',
-                        transition: 'var(--transition-smooth)'
-                      }}
-                    >
-                      {st}
-                    </button>
-                  );
-                })}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 700, marginRight: '4px' }}>STATUS:</span>
+                {['All', 'Submitted', 'Under Review', 'Shortlisted', 'Selected', 'Rejected', 'Waitlisted'].map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setApplicantStatusFilter(st)}
+                    className={`filter-btn ${applicantStatusFilter === st ? 'active' : ''}`}
+                  >
+                    {st}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="glass-panel" style={{ overflow: 'hidden' }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Student Name</th>
-                    <th>Email</th>
-                    <th>Branch / Year</th>
-                    <th>Submitted On</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {applicants.length === 0 ? (
+            <div className="pixel-card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="retro-table">
+                  <thead>
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-                        No applicant records found for current filters.
-                      </td>
+                      <th style={{ width: '22%' }}>Student Name</th>
+                      <th style={{ width: '24%' }}>Email Address</th>
+                      <th style={{ width: '16%' }}>Branch / Year</th>
+                      <th style={{ width: '14%' }}>Submitted On</th>
+                      <th style={{ width: '12%' }}>Status</th>
+                      <th style={{ width: '12%', textAlign: 'right' }}>Actions</th>
                     </tr>
-                  ) : (
-                    applicants.map(app => {
-                      const stStyle = getStatusBadgeStyle(app.status);
-                      return (
+                  </thead>
+                  <tbody>
+                    {applicants.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
+                          No applicant records found for current filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      applicants.map(app => (
                         <tr key={app.id}>
-                          <td style={{ fontWeight: 700, color: 'var(--text-main)' }}>{app.student_name}</td>
-                          <td>{app.student_email}</td>
+                          <td style={{ fontWeight: 700, color: 'var(--text-cream)' }}>{app.student_name}</td>
+                          <td style={{ color: 'var(--color-gold)' }}>{app.student_email}</td>
                           <td>{app.branch || '—'} / {app.year || '—'}</td>
                           <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{new Date(app.submitted_at).toLocaleDateString()}</td>
                           <td>
-                            <span className="badge" style={{ backgroundColor: stStyle.bg, color: stStyle.text, border: `1px solid ${stStyle.border}` }}>
+                            <span className={`badge-pixel ${app.status === 'Shortlisted' || app.status === 'Selected' ? 'others' : app.status === 'Rejected' ? 'cultural' : 'tech'}`}>
                               {app.status}
                             </span>
                           </td>
                           <td style={{ textAlign: 'right' }}>
                             <button 
                               onClick={() => setSelectedApplicant(app)} 
-                              className="btn btn-secondary" 
-                              style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+                              className="btn-pixel-outline" 
+                              style={{ padding: '5px 12px', fontSize: '0.78rem' }}
                             >
                               <Eye size={13} /> View Answers
                             </button>
                           </td>
                         </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: EDIT PROFILE WITH PICTURE UPLOAD */}
+        {/* TAB: AI CANDIDATE RANKING (HnCC) */}
+        {activeTab === 'ai-ranking' && (
+          <div style={{ marginTop: '16px' }}>
+            <HnccCandidateRanking />
+          </div>
+        )}
+
+        {/* TAB 5: EDIT PROFILE WITH PICTURE UPLOAD */}
         {activeTab === 'profile' && (
-          <div className="glass-panel" style={{ padding: '36px', maxWidth: '760px' }}>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '24px' }}>
-              Manage Club Profile & Pictures
+          <div className="pixel-card pixel-corner-mark" style={{ padding: '36px', maxWidth: '780px' }}>
+            <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.45rem', color: 'var(--color-gold)', marginBottom: '24px', letterSpacing: '0.04em' }}>
+              MANAGE CLUB PROFILE & PICTURES
             </h3>
 
-            {msg && <div style={{ padding: '12px 18px', borderRadius: '12px', backgroundColor: '#E6F4EA', color: '#137333', border: '1px solid #CEEAD6', marginBottom: '20px', fontSize: '0.9rem', fontWeight: 600 }}>{msg}</div>}
+            {msg && <div style={{ padding: '12px 18px', backgroundColor: 'rgba(74, 222, 128, 0.15)', color: 'var(--color-mint)', border: '1px solid var(--color-mint)', marginBottom: '20px', fontSize: '0.86rem', fontFamily: 'var(--font-mono)' }}>{msg}</div>}
 
             <form onSubmit={handleUpdateProfile}>
               
@@ -1295,37 +1450,37 @@ export const AdminDashboard = () => {
                 aspectRatio="square"
               />
 
-              <div className="form-group">
+              <div className="form-group" style={{ marginTop: '16px' }}>
                 <label className="form-label">Short Description</label>
                 <input 
                   type="text" 
-                  className="input" 
+                  className="pixel-input" 
                   value={shortDesc} 
                   onChange={e => setShortDesc(e.target.value)} 
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ marginTop: '16px' }}>
                 <label className="form-label">Full Profile Description</label>
                 <textarea 
-                  className="input" 
+                  className="pixel-input" 
                   rows={5} 
                   value={desc} 
                   onChange={e => setDesc(e.target.value)} 
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ marginTop: '16px' }}>
                 <label className="form-label">Official Website URL</label>
                 <input 
                   type="url" 
-                  className="input" 
+                  className="pixel-input" 
                   value={websiteUrl} 
                   onChange={e => setWebsiteUrl(e.target.value)} 
                 />
               </div>
 
-              <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
+              <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
                 <input 
                   type="checkbox" 
                   id="recCheck" 
@@ -1333,48 +1488,48 @@ export const AdminDashboard = () => {
                   onChange={e => setRecruitmentOpen(e.target.checked)} 
                   style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                 />
-                <label htmlFor="recCheck" className="form-label" style={{ marginBottom: 0, cursor: 'pointer' }}>
+                <label htmlFor="recCheck" className="form-label" style={{ marginBottom: 0, cursor: 'pointer', color: 'var(--text-cream)' }}>
                   Enable Recruitment Application Window
                 </label>
               </div>
 
-              <button type="submit" className="btn btn-primary" style={{ marginTop: '24px', padding: '12px 28px' }}>
+              <button type="submit" className="btn-pixel-gold" style={{ marginTop: '24px', padding: '12px 28px' }}>
                 Save Profile Changes
               </button>
             </form>
           </div>
         )}
 
-        {/* TAB 4: INDUCTION FORM BUILDER */}
+        {/* TAB 6: INDUCTION FORM BUILDER */}
         {activeTab === 'form-builder' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
             
             {/* Induction Acceptance Window Control Card */}
-            <div className="glass-panel" style={{ 
-              padding: '26px 30px', 
+            <div className="pixel-card pixel-corner-mark" style={{ 
+              padding: '24px 28px', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'space-between', 
               flexWrap: 'wrap', 
               gap: '18px',
-              borderLeft: recruitmentOpen ? '4px solid #137333' : '4px solid #94A3B8'
+              borderLeft: recruitmentOpen ? '4px solid var(--color-mint)' : '4px solid var(--border-card)'
             }}>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="badge" style={{ 
-                    backgroundColor: recruitmentOpen ? '#E6F4EA' : '#F8FAFC',
-                    color: recruitmentOpen ? '#137333' : '#64748B',
-                    border: recruitmentOpen ? '1px solid #CEEAD6' : '1px solid #E2E8F0',
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="badge-pixel" style={{ 
+                    backgroundColor: recruitmentOpen ? 'var(--color-mint-dim)' : 'var(--color-coral-dim)',
+                    color: recruitmentOpen ? 'var(--color-mint)' : 'var(--color-coral)',
+                    border: recruitmentOpen ? '1px solid rgba(74, 222, 128, 0.4)' : '1px solid rgba(240, 113, 103, 0.4)',
                     fontWeight: 700
                   }}>
                     {recruitmentOpen ? '● Form is Live & Open' : '○ Form is Currently Closed'}
                   </span>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-light)', fontWeight: 500 }}>Club Admin Permission</span>
+                  <span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>CLUB ADMIN PERMISSION</span>
                 </div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '6px' }}>
-                  Student Induction Form Availability
+                <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.25rem', color: 'var(--text-cream)', marginTop: '8px', letterSpacing: '0.04em' }}>
+                  STUDENT INDUCTION FORM AVAILABILITY
                 </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '3px', maxWidth: '580px' }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px', maxWidth: '580px' }}>
                   {recruitmentOpen 
                     ? 'Students can currently view this form and submit their induction applications on the portal.' 
                     : 'The induction form is currently locked to students. When your team is ready to recruit new members, click the button to open it.'}
@@ -1385,32 +1540,31 @@ export const AdminDashboard = () => {
                 type="button"
                 onClick={handleToggleInductionStatus}
                 disabled={actionLoading}
-                className={`btn ${recruitmentOpen ? 'btn-secondary' : 'btn-primary'}`}
+                className={recruitmentOpen ? "btn-pixel-outline" : "btn-pixel-gold"}
                 style={{ 
                   padding: '11px 24px', 
-                  fontSize: '0.88rem', 
+                  fontSize: '0.86rem', 
                   display: 'flex', 
                   alignItems: 'center', 
-                  gap: '8px',
-                  boxShadow: recruitmentOpen ? 'none' : '0 4px 14px rgba(0, 113, 227, 0.3)'
+                  gap: '8px'
                 }}
               >
-                {recruitmentOpen ? <ToggleRight size={18} color="#137333" /> : <ToggleLeft size={18} />}
+                {recruitmentOpen ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                 {recruitmentOpen ? 'Close Induction Form' : 'Open Induction Form Now'}
               </button>
             </div>
 
             {/* Add Question Card */}
-            <div className="glass-panel" style={{ padding: '32px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '20px' }}>
-                Add New Induction Question
+            <div className="pixel-card pixel-corner-mark" style={{ padding: '32px' }}>
+              <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.3rem', color: 'var(--color-gold)', marginBottom: '20px', letterSpacing: '0.04em' }}>
+                ADD NEW INDUCTION QUESTION
               </h3>
               <form onSubmit={handleAddQuestion} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 <div className="form-group">
                   <label className="form-label">Question Text</label>
                   <input 
                     type="text" 
-                    className="input" 
+                    className="pixel-input" 
                     placeholder="e.g. Why do you want to join this club?" 
                     value={newQuestionText} 
                     onChange={e => setNewQuestionText(e.target.value)} 
@@ -1421,7 +1575,7 @@ export const AdminDashboard = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
                   <div className="form-group">
                     <label className="form-label">Question Type</label>
-                    <select className="input" value={newQuestionType} onChange={e => setNewQuestionType(e.target.value)}>
+                    <select className="pixel-input" value={newQuestionType} onChange={e => setNewQuestionType(e.target.value)}>
                       <option value="short_text">Short Text</option>
                       <option value="long_text">Long Text</option>
                       <option value="single_choice">Single Choice</option>
@@ -1438,7 +1592,7 @@ export const AdminDashboard = () => {
                       <label className="form-label">Options (Comma-separated)</label>
                       <input 
                         type="text" 
-                        className="input" 
+                        className="pixel-input" 
                         placeholder="Option 1, Option 2, Option 3" 
                         value={newOptionsStr} 
                         onChange={e => setNewOptionsStr(e.target.value)} 
@@ -1454,35 +1608,36 @@ export const AdminDashboard = () => {
                     id="reqCheck" 
                     checked={newRequired} 
                     onChange={e => setNewRequired(e.target.checked)} 
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                   />
-                  <label htmlFor="reqCheck" className="form-label" style={{ marginBottom: 0, cursor: 'pointer' }}>
+                  <label htmlFor="reqCheck" className="form-label" style={{ marginBottom: 0, cursor: 'pointer', color: 'var(--text-cream)' }}>
                     Required Field
                   </label>
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: 'fit-content', padding: '10px 24px' }}>
+                <button type="submit" className="btn-pixel-gold" style={{ width: 'fit-content', padding: '10px 24px' }}>
                   <Plus size={16} /> Add Question
                 </button>
               </form>
             </div>
 
             {/* Existing Questions List */}
-            <div className="glass-panel" style={{ padding: '32px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '16px' }}>
-                Current Induction Questions ({questions.length})
+            <div className="pixel-card pixel-corner-mark" style={{ padding: '32px' }}>
+              <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.3rem', color: 'var(--color-gold)', marginBottom: '16px', letterSpacing: '0.04em' }}>
+                CURRENT INDUCTION QUESTIONS ({questions.length})
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {questions.map((q, idx) => (
-                  <div key={q.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', backgroundColor: '#F8FAFC', borderRadius: '14px', border: '1px solid rgba(226, 232, 240, 0.8)' }}>
+                  <div key={q.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', backgroundColor: '#080d12', border: '1px solid var(--border-card)' }}>
                     <div>
-                      <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.94rem' }}>
-                        {idx + 1}. {q.question} {q.required === 1 && <span style={{ color: '#DC2626' }}>*</span>}
+                      <div style={{ fontWeight: 700, color: 'var(--text-cream)', fontSize: '0.94rem' }}>
+                        {idx + 1}. {q.question} {q.required === 1 && <span style={{ color: 'var(--color-coral)' }}>*</span>}
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                         Type: {q.question_type} {q.options?.length > 0 && `• (${q.options.map(o => o.option_text).join(', ')})`}
                       </div>
                     </div>
-                    <button onClick={() => handleDeleteQuestion(q.id)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: '6px' }}>
+                    <button onClick={() => handleDeleteQuestion(q.id)} style={{ background: 'none', border: 'none', color: 'var(--color-coral)', cursor: 'pointer', padding: '6px' }} title="Delete question">
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -1493,12 +1648,134 @@ export const AdminDashboard = () => {
           </div>
         )}
 
-        {/* TAB 5: EVENTS WITH PICTURE UPLOAD */}
+        {/* TAB 7: EVENTS MANAGEMENT & PICTURE UPLOAD */}
         {activeTab === 'events' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-            <div className="glass-panel" style={{ padding: '32px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '20px' }}>
-                Create New Campus Event
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            
+            {/* Existing Club Events Roster */}
+            <div className="pixel-card pixel-corner-mark" style={{ padding: '32px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+                <div>
+                  <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.35rem', color: 'var(--color-gold)', letterSpacing: '0.04em' }}>
+                    CLUB EVENTS & WORKSHOPS ROSTER
+                  </h3>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Manage and edit active campus events published by {data.name}. Edited events update across the public events portal immediately.
+                  </p>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.84rem', color: 'var(--color-gold)', backgroundColor: '#070c10', padding: '6px 14px', border: '1px solid var(--border-gold-dim)' }}>
+                  {data.events?.length || 0} TOTAL EVENTS
+                </div>
+              </div>
+
+              {(!data.events || data.events.length === 0) ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', backgroundColor: '#080d12', border: '1px solid var(--border-card)' }}>
+                  <Calendar size={32} style={{ color: 'var(--color-gold)', margin: '0 auto 12px auto' }} />
+                  <div style={{ fontFamily: 'var(--font-pixel)', color: 'var(--text-cream)', fontSize: '1.05rem' }}>NO EVENTS PUBLISHED YET</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Create your club's first hackathon, coding contest, or workshop using the form below.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto', border: '1px solid var(--border-card)' }}>
+                  <table className="retro-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '80px' }}>POSTER</th>
+                        <th style={{ width: '28%' }}>EVENT TITLE</th>
+                        <th style={{ width: '20%' }}>DATE & TIME</th>
+                        <th style={{ width: '20%' }}>VENUE</th>
+                        <th style={{ width: '12%' }}>STATUS</th>
+                        <th style={{ width: '20%', textAlign: 'right' }}>ACTIONS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.events.map(ev => (
+                        <tr key={ev.id}>
+                          <td>
+                            <div style={{ width: '64px', height: '42px', backgroundColor: '#070c10', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                              {ev.image_url ? (
+                                <img
+                                  src={ev.image_url.startsWith('/uploads') ? ev.image_url : ev.image_url}
+                                  alt={ev.title}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                                  <Calendar size={18} />
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700, color: 'var(--text-cream)', fontSize: '0.92rem' }}>{ev.title}</div>
+                            {ev.description && (
+                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>
+                                {ev.description}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ color: 'var(--color-gold)', fontWeight: 600 }}>{formatDate(ev.event_date)}</div>
+                            {(ev.start_time || ev.end_time) && (
+                              <div style={{ fontSize: '0.76rem', color: 'var(--color-cyan)', marginTop: '2px' }}>
+                                {ev.start_time || ''} {ev.end_time ? `- ${ev.end_time}` : ''}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ fontSize: '0.84rem', color: 'var(--text-cream)' }}>{ev.venue || 'BIT Sindri Campus'}</div>
+                          </td>
+                          <td>
+                            <span className={`badge-pixel ${ev.status === 'Registration Open' ? 'cultural' : 'tech'}`} style={{ fontSize: '0.7rem' }}>
+                              {ev.status || 'Published'}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditEvent(ev)}
+                                className="btn-pixel-gold"
+                                style={{ padding: '6px 12px', fontSize: '0.76rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                title="Edit this event"
+                              >
+                                <Pencil size={13} /> Edit
+                              </button>
+                              <a
+                                href={`/events/${ev.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn-pixel-outline"
+                                style={{ padding: '6px 10px', fontSize: '0.76rem', display: 'inline-flex', alignItems: 'center' }}
+                                title="View public event page"
+                              >
+                                <ExternalLink size={13} />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteEvent(ev.id, ev.title)}
+                                className="btn-pixel-outline"
+                                style={{ padding: '6px 10px', color: 'var(--color-coral)', borderColor: 'rgba(240, 113, 103, 0.4)' }}
+                                title="Delete this event"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Create Event Section */}
+            <div className="pixel-card pixel-corner-mark" style={{ padding: '32px' }}>
+              <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.35rem', color: 'var(--color-gold)', marginBottom: '20px', letterSpacing: '0.04em' }}>
+                CREATE NEW CAMPUS EVENT
               </h3>
               <form onSubmit={handleCreateEvent} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 
@@ -1512,28 +1789,28 @@ export const AdminDashboard = () => {
                 />
 
                 <div className="form-group">
-                  <label className="form-label">Event Title</label>
-                  <input type="text" className="input" placeholder="e.g. Hackatron 4.0" value={eventTitle} onChange={e => setEventTitle(e.target.value)} required />
+                  <label className="form-label">Event Title *</label>
+                  <input type="text" className="pixel-input" placeholder="e.g. Hackatron 4.0" value={eventTitle} onChange={e => setEventTitle(e.target.value)} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Description</label>
-                  <textarea className="input" rows={3} value={eventDesc} onChange={e => setEventDesc(e.target.value)} required />
+                  <textarea className="pixel-input" rows={3} placeholder="Event description, rules, eligibility, prizes..." value={eventDesc} onChange={e => setEventDesc(e.target.value)} required />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                   <div className="form-group">
-                    <label className="form-label">Event Date</label>
-                    <input type="date" className="input" value={eventDate} onChange={e => setEventDate(e.target.value)} required />
+                    <label className="form-label">Event Date *</label>
+                    <input type="date" className="pixel-input" value={eventDate} onChange={e => setEventDate(e.target.value)} required />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Venue</label>
-                    <input type="text" className="input" value={eventVenue} onChange={e => setEventVenue(e.target.value)} required />
+                    <input type="text" className="pixel-input" value={eventVenue} onChange={e => setEventVenue(e.target.value)} required />
                   </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Registration URL (Optional)</label>
-                  <input type="url" className="input" placeholder="https://..." value={eventRegUrl} onChange={e => setEventRegUrl(e.target.value)} />
+                  <input type="url" className="pixel-input" placeholder="https://..." value={eventRegUrl} onChange={e => setEventRegUrl(e.target.value)} />
                 </div>
-                <button type="submit" className="btn btn-primary" style={{ width: 'fit-content', padding: '12px 28px' }}>
+                <button type="submit" className="btn-pixel-gold" style={{ width: 'fit-content', padding: '12px 28px' }}>
                   <Calendar size={16} /> Create & Publish Event
                 </button>
               </form>
@@ -1541,63 +1818,64 @@ export const AdminDashboard = () => {
           </div>
         )}
 
-        {/* TAB 6: SOCIAL LINKS */}
+        {/* TAB 8: SOCIAL LINKS */}
         {activeTab === 'social' && (
-          <div className="glass-panel" style={{ padding: '32px', maxWidth: '680px' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '20px' }}>
-              Add Verified Social Links
+          <div className="pixel-card pixel-corner-mark" style={{ padding: '32px', maxWidth: '680px' }}>
+            <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.35rem', color: 'var(--color-gold)', marginBottom: '20px', letterSpacing: '0.04em' }}>
+              ADD VERIFIED SOCIAL LINKS
             </h3>
             <form onSubmit={handleAddSocialLink} style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
-              <select className="input" value={newPlatform} onChange={e => setNewPlatform(e.target.value)} style={{ width: '150px' }}>
+              <select className="pixel-input" value={newPlatform} onChange={e => setNewPlatform(e.target.value)} style={{ width: '150px' }}>
                 <option value="LinkedIn">LinkedIn</option>
                 <option value="Instagram">Instagram</option>
                 <option value="GitHub">GitHub</option>
                 <option value="YouTube">YouTube</option>
                 <option value="Website">Website</option>
               </select>
-              <input type="url" className="input" placeholder="https://..." value={newUrl} onChange={e => setNewUrl(e.target.value)} required style={{ flex: 1, minWidth: '220px' }} />
-              <button type="submit" className="btn btn-primary" style={{ padding: '10px 22px' }}><Plus size={16} /> Add</button>
+              <input type="url" className="pixel-input" placeholder="https://..." value={newUrl} onChange={e => setNewUrl(e.target.value)} required style={{ flex: 1, minWidth: '220px' }} />
+              <button type="submit" className="btn-pixel-gold" style={{ padding: '10px 22px' }}><Plus size={16} /> Add</button>
             </form>
           </div>
         )}
 
-        {/* TAB 7: ANNOUNCEMENTS */}
+        {/* TAB 9: ANNOUNCEMENTS */}
         {activeTab === 'announcements' && (
-          <div className="glass-panel" style={{ padding: '32px', maxWidth: '680px' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '20px' }}>
-              Publish Campus Announcement
+          <div className="pixel-card pixel-corner-mark" style={{ padding: '32px', maxWidth: '680px' }}>
+            <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.35rem', color: 'var(--color-gold)', marginBottom: '20px', letterSpacing: '0.04em' }}>
+              PUBLISH CAMPUS ANNOUNCEMENT
             </h3>
             <form onSubmit={handleCreateAnnouncement} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <input type="text" className="input" placeholder="Announcement Title..." value={annTitle} onChange={e => setAnnTitle(e.target.value)} required />
-              <textarea className="input" rows={4} placeholder="Announcement Content..." value={annContent} onChange={e => setAnnContent(e.target.value)} required />
-              <button type="submit" className="btn btn-primary" style={{ width: 'fit-content', padding: '11px 26px' }}><Megaphone size={16} /> Publish Announcement</button>
+              <input type="text" className="pixel-input" placeholder="Announcement Title..." value={annTitle} onChange={e => setAnnTitle(e.target.value)} required />
+              <textarea className="pixel-input" rows={4} placeholder="Announcement Content..." value={annContent} onChange={e => setAnnContent(e.target.value)} required />
+              <button type="submit" className="btn-pixel-gold" style={{ width: 'fit-content', padding: '11px 26px' }}><Megaphone size={16} /> Publish Announcement</button>
             </form>
           </div>
         )}
 
       </div>
 
+
       {/* APPLICANT DETAIL INSPECTOR MODAL */}
       {selectedApplicant && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '24px' }}>
-          <div className="glass-panel" style={{ maxWidth: '640px', width: '100%', padding: '32px', maxHeight: '85vh', overflowY: 'auto' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.78)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '24px' }}>
+          <div className="pixel-card pixel-corner-mark" style={{ maxWidth: '640px', width: '100%', padding: '32px', maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
               <div>
-                <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)' }}>{selectedApplicant.student_name}</h3>
-                <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>{selectedApplicant.student_email}</div>
+                <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.4rem', color: 'var(--color-gold)' }}>{selectedApplicant.student_name}</h3>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.84rem', color: 'var(--text-muted)' }}>{selectedApplicant.student_email}</div>
               </div>
-              <button onClick={() => setSelectedApplicant(null)} className="btn btn-secondary" style={{ padding: '6px 12px', borderRadius: '50%' }}>✕</button>
+              <button onClick={() => setSelectedApplicant(null)} className="btn-pixel-outline" style={{ padding: '6px 12px' }}>✕</button>
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label className="form-label">Update Status:</label>
+              <label className="form-label">UPDATE STATUS:</label>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
                 {['Submitted', 'Under Review', 'Shortlisted', 'Selected', 'Rejected', 'Waitlisted'].map(st => (
                   <button
                     key={st}
                     onClick={() => handleStatusChange(selectedApplicant.id, st)}
-                    className={`btn ${selectedApplicant.status === st ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+                    className={`filter-btn ${selectedApplicant.status === st ? 'active' : ''}`}
+                    style={{ fontSize: '0.78rem' }}
                   >
                     {st}
                   </button>
@@ -1605,12 +1883,12 @@ export const AdminDashboard = () => {
               </div>
             </div>
 
-            <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '14px' }}>Q&A Application Responses</h4>
+            <h4 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.1rem', color: 'var(--color-gold)', marginBottom: '14px', letterSpacing: '0.04em' }}>Q&A APPLICATION RESPONSES</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {selectedApplicant.answers && selectedApplicant.answers.map((ans, aIdx) => (
-                <div key={aIdx} style={{ padding: '16px', backgroundColor: '#F8FAFC', border: '1px solid rgba(226, 232, 240, 0.8)', borderRadius: '12px' }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)' }}>{ans.question}</div>
-                  <div style={{ color: 'var(--text-body)', fontSize: '0.9rem', marginTop: '6px' }}>{ans.answer}</div>
+                <div key={aIdx} style={{ padding: '16px', backgroundColor: '#080d12', border: '1px solid var(--border-card)' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--color-gold)' }}>{ans.question}</div>
+                  <div style={{ color: 'var(--text-cream)', fontSize: '0.88rem', marginTop: '6px' }}>{ans.answer}</div>
                 </div>
               ))}
             </div>
@@ -1626,15 +1904,15 @@ export const AdminDashboard = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.45)',
-          backdropFilter: 'blur(8px)',
+          backgroundColor: 'rgba(0, 0, 0, 0.78)',
+          backdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 250,
           padding: '24px'
         }}>
-          <div className="glass-panel" style={{
+          <div className="pixel-card pixel-corner-mark" style={{
             maxWidth: '680px',
             width: '100%',
             padding: '32px',
@@ -1643,8 +1921,8 @@ export const AdminDashboard = () => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
               <div>
-                <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                  {editingMember ? 'Edit Member Profile' : 'Add New Club Member'}
+                <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.4rem', color: 'var(--color-gold)', letterSpacing: '0.04em' }}>
+                  {editingMember ? 'EDIT MEMBER PROFILE' : 'ADD NEW CLUB MEMBER'}
                 </h3>
                 <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                   {editingMember ? `Update ${editingMember.name}'s details and role in the club.` : 'Fill out the details to register a member in your club roster.'}
@@ -1653,8 +1931,8 @@ export const AdminDashboard = () => {
               <button
                 type="button"
                 onClick={() => setShowMemberModal(false)}
-                className="btn btn-secondary"
-                style={{ padding: '6px 12px', borderRadius: '50%' }}
+                className="btn-pixel-outline"
+                style={{ padding: '6px 12px' }}
               >
                 ✕
               </button>
@@ -1677,7 +1955,7 @@ export const AdminDashboard = () => {
                   <label className="form-label">Full Name *</label>
                   <input
                     type="text"
-                    className="input"
+                    className="pixel-input"
                     placeholder="e.g. John Doe"
                     value={memberForm.name}
                     onChange={e => setMemberForm(prev => ({ ...prev, name: e.target.value }))}
@@ -1689,7 +1967,7 @@ export const AdminDashboard = () => {
                   <label className="form-label">Position / Designation *</label>
                   <input
                     type="text"
-                    className="input"
+                    className="pixel-input"
                     placeholder="e.g. President, Technical Lead, Coordinator"
                     value={memberForm.position}
                     onChange={e => setMemberForm(prev => ({ ...prev, position: e.target.value }))}
@@ -1704,7 +1982,7 @@ export const AdminDashboard = () => {
                   <label className="form-label">Email Address *</label>
                   <input
                     type="email"
-                    className="input"
+                    className="pixel-input"
                     placeholder="e.g. student@bitsindri.ac.in"
                     value={memberForm.email}
                     onChange={e => setMemberForm(prev => ({ ...prev, email: e.target.value }))}
@@ -1716,7 +1994,7 @@ export const AdminDashboard = () => {
                   <label className="form-label">Phone Number *</label>
                   <input
                     type="tel"
-                    className="input"
+                    className="pixel-input"
                     placeholder="e.g. +91 9876543210"
                     value={memberForm.phone}
                     onChange={e => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
@@ -1731,7 +2009,7 @@ export const AdminDashboard = () => {
                   <label className="form-label">Department / Branch</label>
                   <input
                     type="text"
-                    className="input"
+                    className="pixel-input"
                     placeholder="e.g. CSE"
                     value={memberForm.department}
                     onChange={e => setMemberForm(prev => ({ ...prev, department: e.target.value }))}
@@ -1742,7 +2020,7 @@ export const AdminDashboard = () => {
                   <label className="form-label">Batch Year</label>
                   <input
                     type="text"
-                    className="input"
+                    className="pixel-input"
                     placeholder="e.g. 2023-2027"
                     value={memberForm.batch_year}
                     onChange={e => setMemberForm(prev => ({ ...prev, batch_year: e.target.value }))}
@@ -1753,7 +2031,7 @@ export const AdminDashboard = () => {
                   <label className="form-label">Joined Date</label>
                   <input
                     type="date"
-                    className="input"
+                    className="pixel-input"
                     value={memberForm.joined_date}
                     onChange={e => setMemberForm(prev => ({ ...prev, joined_date: e.target.value }))}
                   />
@@ -1762,7 +2040,7 @@ export const AdminDashboard = () => {
                 <div className="form-group">
                   <label className="form-label">Membership Status</label>
                   <select
-                    className="input"
+                    className="pixel-input"
                     value={memberForm.status}
                     onChange={e => setMemberForm(prev => ({ ...prev, status: e.target.value }))}
                   >
@@ -1779,7 +2057,7 @@ export const AdminDashboard = () => {
                   <label className="form-label">LinkedIn Profile URL</label>
                   <input
                     type="url"
-                    className="input"
+                    className="pixel-input"
                     placeholder="https://linkedin.com/in/..."
                     value={memberForm.linkedin_url}
                     onChange={e => setMemberForm(prev => ({ ...prev, linkedin_url: e.target.value }))}
@@ -1790,7 +2068,7 @@ export const AdminDashboard = () => {
                   <label className="form-label">GitHub Profile URL</label>
                   <input
                     type="url"
-                    className="input"
+                    className="pixel-input"
                     placeholder="https://github.com/..."
                     value={memberForm.github_url}
                     onChange={e => setMemberForm(prev => ({ ...prev, github_url: e.target.value }))}
@@ -1802,7 +2080,7 @@ export const AdminDashboard = () => {
               <div className="form-group">
                 <label className="form-label">Member Bio / Highlights</label>
                 <textarea
-                  className="input"
+                  className="pixel-input"
                   rows={2}
                   placeholder="Short note about responsibilities, domain focus, or achievements..."
                   value={memberForm.bio}
@@ -1815,18 +2093,189 @@ export const AdminDashboard = () => {
                 <button
                   type="button"
                   onClick={() => setShowMemberModal(false)}
-                  className="btn btn-secondary"
+                  className="btn-pixel-outline"
                   disabled={actionLoading}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className="btn-pixel-gold"
                   disabled={actionLoading}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   {actionLoading ? 'Saving...' : editingMember ? 'Update Member' : 'Add Member to Roster'}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT EVENT MODAL */}
+      {showEventEditModal && editingEvent && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 260,
+          padding: '24px'
+        }}>
+          <div className="pixel-card pixel-corner-mark" style={{
+            maxWidth: '680px',
+            width: '100%',
+            padding: '32px',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.4rem', color: 'var(--color-gold)', letterSpacing: '0.04em' }}>
+                  EDIT EVENT: {editingEvent.title}
+                </h3>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Update details, venue, dates, or registration links for this campus event.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowEventEditModal(false); setEditingEvent(null); }}
+                className="btn-pixel-outline"
+                style={{ padding: '6px 12px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateEvent} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              
+              {/* Event Poster / Flyer */}
+              <ImageUploader
+                value={eventEditForm.image_url}
+                onChange={(url) => setEventEditForm(prev => ({ ...prev, image_url: url }))}
+                label="Event Poster / Picture Banner"
+                helperText="Upload event flyer or poster (16:9 recommended, PNG, JPG, WebP)"
+                aspectRatio="video"
+              />
+
+              <div className="form-group">
+                <label className="form-label">Event Title *</label>
+                <input
+                  type="text"
+                  className="pixel-input"
+                  value={eventEditForm.title}
+                  onChange={e => setEventEditForm(prev => ({ ...prev, title: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <textarea
+                  className="pixel-input"
+                  rows={3}
+                  value={eventEditForm.description}
+                  onChange={e => setEventEditForm(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Event Date *</label>
+                  <input
+                    type="date"
+                    className="pixel-input"
+                    value={eventEditForm.event_date}
+                    onChange={e => setEventEditForm(prev => ({ ...prev, event_date: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select
+                    className="pixel-input"
+                    value={eventEditForm.status}
+                    onChange={e => setEventEditForm(prev => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="Published">Published</option>
+                    <option value="Registration Open">Registration Open</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Start Time</label>
+                  <input
+                    type="text"
+                    className="pixel-input"
+                    placeholder="e.g. 09:00 AM"
+                    value={eventEditForm.start_time}
+                    onChange={e => setEventEditForm(prev => ({ ...prev, start_time: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">End Time</label>
+                  <input
+                    type="text"
+                    className="pixel-input"
+                    placeholder="e.g. 05:00 PM"
+                    value={eventEditForm.end_time}
+                    onChange={e => setEventEditForm(prev => ({ ...prev, end_time: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Venue</label>
+                <input
+                  type="text"
+                  className="pixel-input"
+                  value={eventEditForm.venue}
+                  onChange={e => setEventEditForm(prev => ({ ...prev, venue: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Registration / Portal URL</label>
+                <input
+                  type="url"
+                  className="pixel-input"
+                  placeholder="https://..."
+                  value={eventEditForm.registration_url}
+                  onChange={e => setEventEditForm(prev => ({ ...prev, registration_url: e.target.value }))}
+                />
+              </div>
+
+              {/* Form Action Buttons */}
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowEventEditModal(false); setEditingEvent(null); }}
+                  className="btn-pixel-outline"
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-pixel-gold"
+                  disabled={actionLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {actionLoading ? 'Saving Changes...' : 'Save & Update Event'}
                 </button>
               </div>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, CheckCircle2, AlertCircle, Send } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertCircle, Send, ShieldAlert } from 'lucide-react';
 import { PixelIcon } from '../components/PixelIcon';
 import { ImageUploader } from '../components/ImageUploader';
 
@@ -88,6 +88,11 @@ export const ApplyInduction = () => {
       return;
     }
 
+    if (user.role === 'club_admin' || user.role === 'admin') {
+      setError('Club administrators cannot apply to clubs. Induction applications are reserved for students only.');
+      return;
+    }
+
     if (!form || !form.id || !club || !club.id) {
       setError('Induction application form is currently unavailable.');
       return;
@@ -125,6 +130,59 @@ export const ApplyInduction = () => {
     return (
       <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>LOADING INDUCTION FORM...</div>
+      </div>
+    );
+  }
+
+  // Club Administrators cannot apply for any club inductions
+  if (user && (user.role === 'club_admin' || user.role === 'admin')) {
+    return (
+      <div style={{ backgroundColor: 'var(--bg-canvas)', minHeight: '100vh', paddingBottom: '80px' }}>
+        <div className="container" style={{ maxWidth: '640px', paddingTop: '60px', textAlign: 'center' }}>
+          <div style={{
+            backgroundColor: '#0c141c',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            padding: '48px 32px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              border: '1px solid #ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              color: '#f87171',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '20px'
+            }}>
+              <ShieldAlert size={32} />
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-pixel)', fontSize: '1.6rem', color: '#f87171', marginBottom: '16px' }}>
+              ADMINS CANNOT APPLY
+            </h2>
+            <p style={{
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--text-muted)',
+              fontSize: '0.88rem',
+              lineHeight: 1.6,
+              marginBottom: '28px',
+              maxWidth: '480px',
+              margin: '0 auto 28px'
+            }}>
+              You are logged in as a <strong>Club Administrator ({user.name || user.email})</strong>. Administrators are not eligible to apply for club inductions. Induction applications are reserved for student applicants only.
+            </p>
+            <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link to="/admin/dashboard" className="btn-pixel-gold">
+                GO TO WORKSPACE
+              </Link>
+              <Link to={`/clubs/${slug}`} className="btn-pixel-outline">
+                ← BACK TO CLUB
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

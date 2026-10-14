@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { PixelIcon } from './PixelIcon';
 import { Search, LogOut, LayoutDashboard, User } from 'lucide-react';
+import bitSindriCrest from '../assets/bit_sindri_crest.png';
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
@@ -41,16 +42,27 @@ export const Navbar = () => {
         {/* Left: Pixel Logo & Brand */}
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
           <div style={{
-            width: '36px',
-            height: '36px',
+            width: '38px',
+            height: '38px',
             border: '1px solid var(--border-gold)',
             backgroundColor: '#0c141c',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '1px 1px 0px #8a7329'
+            boxShadow: '1px 1px 0px #8a7329',
+            padding: '2px',
+            overflow: 'hidden'
           }}>
-            <PixelIcon name="building" size={26} />
+            <img
+              src={bitSindriCrest}
+              alt="BIT Sindri Crest"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                imageRendering: 'pixelated'
+              }}
+            />
           </div>
           <div>
             <div style={{
@@ -144,6 +156,16 @@ export const Navbar = () => {
                   style={{ padding: '6px 12px', fontSize: '0.78rem' }}
                 >
                   <LayoutDashboard size={13} /> WORKSPACE
+                </Link>
+              )}
+
+              {user.role === 'student' && (
+                <Link
+                  to="/my-applications"
+                  className="btn-pixel-outline"
+                  style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                >
+                  MY APPS
                 </Link>
               )}
 

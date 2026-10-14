@@ -42,8 +42,8 @@ pnpm-debug.log*
 *.sw?
 
 # Embedded PGlite database
-.pglite-data/
-backend/.pglite-data/
+.pglite*/
+backend/.pglite*/
 
 # AI candidate evaluation data & cache
 backend/src/data/*.csv
@@ -51,3 +51,6 @@ backend/src/data/*.json
 !backend/src/data/.gitkeep
 uploads/csv/
 backend/uploads/csv/
+__pycache__/
+*.py[cod]
+*$py.class

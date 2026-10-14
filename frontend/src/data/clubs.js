@@ -1,5 +1,7 @@
+import hnccLogo from '../assets/hncc_logo.png';
+
 const CLUB_LOGOS = {
-  hncc: '/clubs/hncc.jpeg',
+  hncc: hnccLogo,
   'literary-society': '/clubs/literary-society.jpeg',
   'photographic-club': '/clubs/photographic-club.jpeg',
   'robotics-club': '/clubs/robotics-club.jpeg',

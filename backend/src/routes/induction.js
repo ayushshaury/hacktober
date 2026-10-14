@@ -125,6 +125,11 @@ router.get('/clubs/:clubSlug/form', getFormHandler);
 
 // POST /api/induction/apply - Submit application (Student authenticated)
 router.post('/apply', authenticateToken, async (req, res) => {
+  // Reject admins from applying to any clubs
+  if (req.user.role === 'club_admin' || req.user.role === 'admin') {
+    return res.status(403).json({ error: 'Club administrators cannot apply to clubs. Induction applications are reserved for students only.' });
+  }
+
   const { form_id, club_id, answers } = req.body;
 
   if (!form_id || !club_id || !answers) {
