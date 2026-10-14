@@ -79,9 +79,16 @@ export const HnccCandidateRanking = () => {
         body: formData
       });
 
-      const data = await res.json();
+      let data = {};
+      const text = await res.text();
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (_) {
+        data = { error: text || 'Server returned an unparseable response.' };
+      }
+
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to generate candidate ranking');
+        throw new Error(data.error || data.message || `Server error (${res.status})`);
       }
 
       setResults(data);

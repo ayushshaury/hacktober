@@ -2,45 +2,17 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { execFile } from 'child_process';
 import multer from 'multer';
 import { getDb } from '../db/db.js';
 import { authenticateToken, requireRole, enforceClubIsolation, resolveClubId } from '../middleware/auth.js';
+import { scoreCandidates, parseCandidatesFromCSVString, loadCachedRankings } from '../ai/candidate_ranker.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
 
-// Multer storage for custom candidate CSV uploads
-const isServerless = Boolean(process.env.VERCEL);
-const uploadCsvDir = isServerless 
-  ? path.join('/tmp', 'uploads', 'csv') 
-  : path.resolve(__dirname, '../../uploads/csv');
-
-try {
-  if (!fs.existsSync(uploadCsvDir)) {
-    fs.mkdirSync(uploadCsvDir, { recursive: true });
-  }
-} catch (err) {
-  console.warn('[admin] Notice: could not create CSV upload directory:', err.message);
-}
-
-const csvStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      if (!fs.existsSync(uploadCsvDir)) {
-        fs.mkdirSync(uploadCsvDir, { recursive: true });
-      }
-    } catch (_) {}
-    cb(null, uploadCsvDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `candidates-${uniqueSuffix}.csv`);
-  }
-});
-
+// Multer memory storage for custom candidate CSV uploads (serverless and container compatible)
 const uploadCsv = multer({
-  storage: csvStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
   fileFilter: (req, file, cb) => {
     if (file.originalname.toLowerCase().endsWith('.csv') || file.mimetype.includes('csv') || file.mimetype === 'text/plain') {
@@ -835,20 +807,8 @@ function maskCandidateName(name) {
  * Supports precomputed cache or dynamic custom CSV evaluation via Python MiniLM model.
  */
 router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_file'), async (req, res) => {
-  let uploadedFilePath = req.file ? req.file.path : null;
-  const cleanupFile = () => {
-    if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
-      try {
-        fs.unlinkSync(uploadedFilePath);
-      } catch (err) {
-        console.error('Failed to remove temp uploaded file:', err);
-      }
-    }
-  };
-
   try {
     if (!canAccessHnccModel(req.user)) {
-      cleanupFile();
       return res.status(403).json({
         error: 'Access restricted. Only authorized HnCC administrators can access the AI candidate ranking model.'
       });
@@ -858,7 +818,6 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
     const validDomains = ['CP / DSA', 'Web Development', 'AI / ML'];
 
     if (!domain || !validDomains.includes(domain)) {
-      cleanupFile();
       return res.status(400).json({
         error: `Please select a valid domain from: ${validDomains.join(', ')}`
       });
@@ -866,7 +825,6 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
 
     const count = parseInt(top_n, 10);
     if (isNaN(count) || count < 1 || count > 500) {
-      cleanupFile();
       return res.status(400).json({
         error: 'Please enter a valid candidate count between 1 and 500.'
       });
@@ -875,72 +833,70 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
     const viewerEmail = (req.user?.email || '').toLowerCase().trim();
     const isMasterAdmin = viewerEmail === 'hncc.admin@bitsindri.ac.in';
 
-    // IF an uploaded CSV file is provided, compute dynamically using the custom CSV
-    // (Phone numbers are NEVER hashed for custom user CSV input)
-    if (uploadedFilePath) {
-      const scriptPath = path.resolve(__dirname, '../ai/hncc_candidate_ranker.py');
-      execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--csv_path', uploadedFilePath, '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
-        cleanupFile();
-        if (err) {
-          console.error('Python execution error on custom CSV:', err, stderr);
-          return res.status(500).json({ error: 'Failed to process uploaded CSV with AI ranking model. Please verify CSV format.' });
+    // IF an uploaded CSV file is provided, compute dynamically using the custom CSV in pure JavaScript
+    if (req.file) {
+      try {
+        let csvContent = '';
+        if (req.file.buffer) {
+          csvContent = req.file.buffer.toString('utf8');
+        } else if (req.file.path && fs.existsSync(req.file.path)) {
+          csvContent = fs.readFileSync(req.file.path, 'utf8');
+          try { fs.unlinkSync(req.file.path); } catch (_) {}
         }
-        try {
-          const result = JSON.parse(stdout);
-          return res.json({
-            status: 'success',
-            domain,
-            top_n: count,
-            total_available: result.total_available,
-            custom_source: true,
-            source_filename: req.file.originalname,
-            candidates: result.candidates
-          });
-        } catch (parseErr) {
-          console.error('Failed to parse Python script output on custom CSV:', stdout, parseErr);
-          return res.status(500).json({ error: 'Invalid response from AI ranking model.' });
+
+        const parsed = parseCandidatesFromCSVString(csvContent);
+        if (!parsed || parsed.length === 0) {
+          return res.status(400).json({ error: 'Uploaded CSV file contains no candidate records. Please verify format.' });
         }
+        const result = scoreCandidates(parsed, domain, count);
+        return res.json({
+          status: 'success',
+          domain,
+          top_n: count,
+          total_available: result.total_available,
+          custom_source: true,
+          source_filename: req.file ? req.file.originalname : 'custom_candidates.csv',
+          candidates: result.candidates
+        });
+      } catch (customErr) {
+        console.error('Error processing uploaded custom CSV:', customErr);
+        return res.status(500).json({ error: 'Failed to process uploaded CSV with AI ranking model. Please verify CSV format.' });
+      }
+    }
+
+    // Otherwise, check precomputed cache first for instant sub-2ms response on default dataset
+    const cachedData = loadCachedRankings();
+    if (cachedData && cachedData.domains && cachedData.domains[domain]) {
+      const candidates = cachedData.domains[domain].slice(0, count).map((c, i) => ({
+        ...c,
+        candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
+        phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number,
+        rank: i + 1
+      }));
+      return res.json({
+        status: 'success',
+        domain,
+        top_n: count,
+        total_available: cachedData.domains[domain].length,
+        custom_source: false,
+        candidates
       });
-      return;
     }
 
-    // Otherwise, check precomputed cache first for instant sub-20ms response on default dataset
-    const cachePath = path.resolve(__dirname, '../data/hncc_ranked_cache.json');
-    if (fs.existsSync(cachePath)) {
-      try {
-        const raw = fs.readFileSync(cachePath, 'utf8');
-        const data = JSON.parse(raw);
-        if (data.domains && data.domains[domain]) {
-          const candidates = data.domains[domain].slice(0, count).map((c, i) => ({
-            ...c,
-            candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
-            phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number,
-            rank: i + 1
-          }));
-          return res.json({
-            status: 'success',
-            domain,
-            top_n: count,
-            total_available: data.domains[domain].length,
-            custom_source: false,
-            candidates
-          });
-        }
-      } catch (cacheErr) {
-        console.error('Error reading HnCC cache, falling back to python script:', cacheErr);
-      }
-    }
+    // Fallback: evaluate default official CSV directly in pure JavaScript
+    const defaultCsvPaths = [
+      path.resolve(__dirname, '../data/hncc_candidates.csv'),
+      path.resolve(process.cwd(), 'backend/src/data/hncc_candidates.csv'),
+      path.resolve(process.cwd(), 'src/data/hncc_candidates.csv')
+    ];
+    const foundCsvPath = defaultCsvPaths.find(p => fs.existsSync(p));
 
-    // Fallback: execute python model script directly on default dataset
-    const scriptPath = path.resolve(__dirname, '../ai/hncc_candidate_ranker.py');
-    execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) {
-        console.error('Python execution error:', err, stderr);
-        return res.status(500).json({ error: 'Failed to run AI ranking model on server.' });
-      }
+    if (foundCsvPath) {
       try {
-        const result = JSON.parse(stdout);
-        const candidates = (result.candidates || []).map(c => ({
+        const rawCsv = fs.readFileSync(foundCsvPath, 'utf8');
+        const parsed = parseCandidatesFromCSVString(rawCsv);
+        const result = scoreCandidates(parsed, domain, count);
+        const candidates = result.candidates.map(c => ({
           ...c,
           candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
           phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number
@@ -953,14 +909,14 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
           custom_source: false,
           candidates
         });
-      } catch (parseErr) {
-        console.error('Failed to parse Python script output:', stdout, parseErr);
-        return res.status(500).json({ error: 'Invalid response from AI ranking model.' });
+      } catch (scoreErr) {
+        console.error('Error in dynamic JS ranking fallback:', scoreErr);
       }
-    });
+    }
+
+    return res.status(500).json({ error: 'Failed to run AI ranking model on server. Dataset not accessible.' });
 
   } catch (err) {
-    cleanupFile();
     console.error('Error in /api/admin/hncc/candidate-ranking:', err);
     res.status(500).json({ error: 'Server error processing candidate ranking.' });
   }
@@ -980,40 +936,37 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
     const viewerEmail = (req.user?.email || '').toLowerCase().trim();
     const isMasterAdmin = viewerEmail === 'hncc.admin@bitsindri.ac.in';
 
-    const cachePath = path.resolve(__dirname, '../data/hncc_ranked_cache.json');
-    if (fs.existsSync(cachePath)) {
-      try {
-        const raw = fs.readFileSync(cachePath, 'utf8');
-        const data = JSON.parse(raw);
-        if (data.domains && data.domains[domain]) {
-          const candidates = data.domains[domain].slice(0, top_n).map((c, i) => ({
-            ...c,
-            candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
-            phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number,
-            rank: i + 1
-          }));
-          return res.json({
-            status: 'success',
-            domain,
-            top_n,
-            total_available: data.domains[domain].length,
-            candidates
-          });
-        }
-      } catch (cacheErr) {
-        console.error('Error reading HnCC cache:', cacheErr);
-      }
+    const cachedData = loadCachedRankings();
+    if (cachedData && cachedData.domains && cachedData.domains[domain]) {
+      const candidates = cachedData.domains[domain].slice(0, top_n).map((c, i) => ({
+        ...c,
+        candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
+        phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number,
+        rank: i + 1
+      }));
+      return res.json({
+        status: 'success',
+        domain,
+        top_n,
+        total_available: cachedData.domains[domain].length,
+        candidates
+      });
     }
 
-    const scriptPath = path.resolve(__dirname, '../ai/hncc_candidate_ranker.py');
-    execFile('python', [scriptPath, '--domain', domain, '--top_n', top_n.toString(), '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) {
-        console.error('Python execution error:', err, stderr);
-        return res.status(500).json({ error: 'Failed to run AI ranking model.' });
-      }
+    // Dynamic fallback
+    const defaultCsvPaths = [
+      path.resolve(__dirname, '../data/hncc_candidates.csv'),
+      path.resolve(process.cwd(), 'backend/src/data/hncc_candidates.csv'),
+      path.resolve(process.cwd(), 'src/data/hncc_candidates.csv')
+    ];
+    const foundCsvPath = defaultCsvPaths.find(p => fs.existsSync(p));
+
+    if (foundCsvPath) {
       try {
-        const result = JSON.parse(stdout);
-        const candidates = (result.candidates || []).map(c => ({
+        const rawCsv = fs.readFileSync(foundCsvPath, 'utf8');
+        const parsed = parseCandidatesFromCSVString(rawCsv);
+        const result = scoreCandidates(parsed, domain, top_n);
+        const candidates = result.candidates.map(c => ({
           ...c,
           candidate_name: !isMasterAdmin ? maskCandidateName(c.candidate_name) : c.candidate_name,
           phone_number: !isMasterAdmin ? hashPhoneNumber(c.phone_number) : c.phone_number
@@ -1025,11 +978,12 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
           total_available: result.total_available,
           candidates
         });
-      } catch (parseErr) {
-        console.error('Parse error:', stdout, parseErr);
-        return res.status(500).json({ error: 'Invalid response from model.' });
+      } catch (scoreErr) {
+        console.error('Error in dynamic JS ranking fallback:', scoreErr);
       }
-    });
+    }
+
+    return res.status(500).json({ error: 'Failed to retrieve rankings on server.' });
   } catch (err) {
     console.error('Error in /api/admin/hncc-rankings:', err);
     res.status(500).json({ error: 'Server error retrieving rankings.' });
