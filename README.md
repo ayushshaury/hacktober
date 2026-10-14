@@ -82,7 +82,7 @@ Built with a **Node.js Express** backend (with embedded PGlite / PostgreSQL), **
 
 | Role | Name | Email | Password | Permissions |
 | :--- | :--- | :--- | :--- | :--- |
-| **Master Admin** | Rahul (HnCC) | `hncc.admin@bitsindri.ac.in` | `admin123` | Full access, unmasked candidate data, admin grant/revoke |
+
 | **Club Admin** | Club Admin | `admin@bitsindri.ac.in` | `admin123` | Club workspace, masked seeded candidates, no admin grant/revoke |
 | **Student 1** | Aryan Raj | `student.demo@bitsindri.ac.in` | `student123` | Induction applications, event participation |
 | **Student 2** | Priya Sharma | `student2.demo@bitsindri.ac.in` | `student123` | Induction applications, club exploration |
