@@ -1,21 +1,38 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { execFile } from 'child_process';
 import multer from 'multer';
 import { getDb } from '../db/db.js';
 import { authenticateToken, requireRole, enforceClubIsolation, resolveClubId } from '../middleware/auth.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
 
 // Multer storage for custom candidate CSV uploads
-const uploadCsvDir = path.resolve(process.cwd(), 'uploads/csv');
-if (!fs.existsSync(uploadCsvDir)) {
-  fs.mkdirSync(uploadCsvDir, { recursive: true });
+const isServerless = Boolean(process.env.VERCEL);
+const uploadCsvDir = isServerless 
+  ? path.join('/tmp', 'uploads', 'csv') 
+  : path.resolve(__dirname, '../../uploads/csv');
+
+try {
+  if (!fs.existsSync(uploadCsvDir)) {
+    fs.mkdirSync(uploadCsvDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('[admin] Notice: could not create CSV upload directory:', err.message);
 }
 
 const csvStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadCsvDir),
+  destination: (req, file, cb) => {
+    try {
+      if (!fs.existsSync(uploadCsvDir)) {
+        fs.mkdirSync(uploadCsvDir, { recursive: true });
+      }
+    } catch (_) {}
+    cb(null, uploadCsvDir);
+  },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, `candidates-${uniqueSuffix}.csv`);
@@ -861,7 +878,7 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
     // IF an uploaded CSV file is provided, compute dynamically using the custom CSV
     // (Phone numbers are NEVER hashed for custom user CSV input)
     if (uploadedFilePath) {
-      const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
+      const scriptPath = path.resolve(__dirname, '../ai/hncc_candidate_ranker.py');
       execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--csv_path', uploadedFilePath, '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
         cleanupFile();
         if (err) {
@@ -888,7 +905,7 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
     }
 
     // Otherwise, check precomputed cache first for instant sub-20ms response on default dataset
-    const cachePath = path.resolve(process.cwd(), 'src/data/hncc_ranked_cache.json');
+    const cachePath = path.resolve(__dirname, '../data/hncc_ranked_cache.json');
     if (fs.existsSync(cachePath)) {
       try {
         const raw = fs.readFileSync(cachePath, 'utf8');
@@ -915,7 +932,7 @@ router.post('/hncc/candidate-ranking', authenticateToken, uploadCsv.single('csv_
     }
 
     // Fallback: execute python model script directly on default dataset
-    const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
+    const scriptPath = path.resolve(__dirname, '../ai/hncc_candidate_ranker.py');
     execFile('python', [scriptPath, '--domain', domain, '--top_n', count.toString(), '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         console.error('Python execution error:', err, stderr);
@@ -963,7 +980,7 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
     const viewerEmail = (req.user?.email || '').toLowerCase().trim();
     const isMasterAdmin = viewerEmail === 'hncc.admin@bitsindri.ac.in';
 
-    const cachePath = path.resolve(process.cwd(), 'src/data/hncc_ranked_cache.json');
+    const cachePath = path.resolve(__dirname, '../data/hncc_ranked_cache.json');
     if (fs.existsSync(cachePath)) {
       try {
         const raw = fs.readFileSync(cachePath, 'utf8');
@@ -988,7 +1005,7 @@ router.get('/hncc-rankings', authenticateToken, async (req, res) => {
       }
     }
 
-    const scriptPath = path.resolve(process.cwd(), 'src/ai/hncc_candidate_ranker.py');
+    const scriptPath = path.resolve(__dirname, '../ai/hncc_candidate_ranker.py');
     execFile('python', [scriptPath, '--domain', domain, '--top_n', top_n.toString(), '--admin_email', viewerEmail], { maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         console.error('Python execution error:', err, stderr);
