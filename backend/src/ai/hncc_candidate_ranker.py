@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 import os
-import sys
 import re
 import json
 import argparse
@@ -126,9 +125,13 @@ class ClubShortlistingModel:
             else:
                 skills_score = 0.0
 
-            try:
-                comm_rating = float(candidate.get("communication_rating")) if candidate.get("communication_rating") is not None else float("nan")
-            except (TypeError, ValueError):
+            raw_comm = candidate.get("communication_rating")
+            if raw_comm is not None:
+                try:
+                    comm_rating = float(raw_comm)
+                except (TypeError, ValueError):
+                    comm_rating = float("nan")
+            else:
                 comm_rating = float("nan")
 
             if not np.isfinite(comm_rating) or not 1 <= comm_rating <= 5:
@@ -213,6 +216,7 @@ def parse_candidates_from_csv(csv_path: str = CSV_PATH) -> List[Dict[str, Any]]:
 
     candidates = []
     for idx, row in df.iterrows():
+        cand_num = int(idx) + 1 if isinstance(idx, int) else (len(candidates) + 1)
         lang = str(row.get(lang_col, "")) if lang_col in df.columns else ""
         tech = str(row.get(tech_col, "")) if tech_col in df.columns else ""
         if lang and tech and lang != "nan" and tech != "nan":
@@ -224,7 +228,7 @@ def parse_candidates_from_csv(csv_path: str = CSV_PATH) -> List[Dict[str, Any]]:
         else:
             skills_text = ""
 
-        raw_name = str(row.get(name_col, f"Candidate #{idx+1}")) if name_col in df.columns else f"Candidate #{idx+1}"
+        raw_name = str(row.get(name_col, f"Candidate #{cand_num}")) if name_col in df.columns else f"Candidate #{cand_num}"
         name = "Anonymous" if raw_name == "nan" or not raw_name.strip() else raw_name.strip()
 
         raw_phone = str(row.get(phone_col, "N/A")) if phone_col in df.columns else "N/A"
