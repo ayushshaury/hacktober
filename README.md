@@ -14,6 +14,7 @@ Built with a **Node.js Express** backend (with embedded PGlite / PostgreSQL), **
   - Communication skills (20%)
 - **Applicant Workspace Integration**: Positioned directly below the applicant directory in the Club Workspace for immediate decision-making.
 - **Custom CSV Evaluation**: Upload custom applicant CSVs for live AI scoring, score distributions, and exportable ranking reports.
+- **Export to PDF & CSV**: Export evaluated and shortlisted candidates directly as formatted **PDF reports** (with official BIT Sindri / HnCC headers, score breakdowns, and rankings) or **CSV spreadsheets**.
 - **Status Management**: Filter and transition candidates across `Shortlisted`, `Under Review`, `Waitlisted`, and `Rejected`.
 
 ### 🛡️ 2. Privacy & Data Masking Guards
@@ -348,7 +349,6 @@ sequenceDiagram
 
 | Role | Name | Email | Password | Permissions |
 | :--- | :--- | :--- | :--- | :--- |
-| **Master Admin** | Rahul (HnCC) | `hncc.admin@bitsindri.ac.in` | `admin123` | Full access, unmasked candidate data, admin grant/revoke |
 | **Club Admin** | Club Admin | `admin@bitsindri.ac.in` | `admin123` | Club workspace, masked seeded candidates, no admin grant/revoke |
 | **Student 1** | Aryan Raj | `student.demo@bitsindri.ac.in` | `student123` | Induction applications, event participation |
 | **Student 2** | Priya Sharma | `student2.demo@bitsindri.ac.in` | `student123` | Induction applications, club exploration |

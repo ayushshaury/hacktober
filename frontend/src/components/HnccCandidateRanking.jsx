@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, Users, Award, ShieldAlert, Phone, BookOpen, CheckCircle, RefreshCw, Lock, UploadCloud, FileText, X } from 'lucide-react';
+import { Sparkles, Users, Award, ShieldAlert, Phone, BookOpen, CheckCircle, RefreshCw, Lock, UploadCloud, FileText, X, Download, FileSpreadsheet } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 
 const DOMAINS = ['CP / DSA', 'Web Development', 'AI / ML'];
 
@@ -13,6 +14,9 @@ export const HnccCandidateRanking = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
+  const [exportSuccess, setExportSuccess] = useState('');
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const fileInputRef = useRef(null);
 
   // Check if current user is an authorized HnCC Administrator or Super Admin
@@ -86,6 +90,248 @@ export const HnccCandidateRanking = () => {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!results || !results.candidates || results.candidates.length === 0) {
+      setError('No shortlisted candidates available to export.');
+      return;
+    }
+
+    try {
+      setExportingCsv(true);
+      setError('');
+
+      const headers = [
+        'Rank',
+        'Candidate Name',
+        'Branch',
+        'Phone Number',
+        'Domain',
+        'Matched Skills',
+        'Matched Languages',
+        'Technical Score (80%)',
+        'Communication Score (20%)',
+        'Final Score (/100)'
+      ];
+
+      const csvRows = [headers.join(',')];
+
+      results.candidates.forEach((c) => {
+        const skills = (c.matched_keywords || []).join('; ');
+        const langs = (c.matched_languages || []).join('; ');
+        const row = [
+          `"${c.rank}"`,
+          `"${(c.candidate_name || '').replace(/"/g, '""')}"`,
+          `"${(c.branch || '').replace(/"/g, '""')}"`,
+          `"${(c.phone_number || '').replace(/"/g, '""')}"`,
+          `"${(c.domain || '').replace(/"/g, '""')}"`,
+          `"${skills.replace(/"/g, '""')}"`,
+          `"${langs.replace(/"/g, '""')}"`,
+          `"${c.skills_score ?? ''}"`,
+          `"${c.communication_score ?? ''}"`,
+          `"${c.final_score ?? ''}"`
+        ];
+        csvRows.push(row.join(','));
+      });
+
+      const csvContent = '\uFEFF' + csvRows.join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeDomain = (results.domain || 'candidates').toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.setAttribute('download', `hncc_${safeDomain}_shortlist_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setExportSuccess(`Successfully exported ${results.candidates.length} candidates as CSV!`);
+      setTimeout(() => setExportSuccess(''), 4500);
+    } catch (err) {
+      console.error('CSV export failed:', err);
+      setError('Failed to export CSV: ' + err.message);
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
+  const handleExportPDF = () => {
+    if (!results || !results.candidates || results.candidates.length === 0) {
+      setError('No shortlisted candidates available to export.');
+      return;
+    }
+
+    try {
+      setExportingPdf(true);
+      setError('');
+
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 14;
+      let y = 14;
+
+      // Header Banner
+      doc.setFillColor(9, 14, 19);
+      doc.rect(margin, y, pageWidth - (margin * 2), 26, 'F');
+      doc.setDrawColor(194, 166, 73);
+      doc.setLineWidth(0.6);
+      doc.rect(margin, y, pageWidth - (margin * 2), 26, 'S');
+
+      // Title
+      doc.setTextColor(243, 208, 99);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text('BIT SINDRI — HnCC AI INDUCTION SHORTLIST', margin + 6, y + 8.5);
+
+      // Subtitle
+      doc.setTextColor(190, 200, 210);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const safeDomain = results.domain || 'All Domains';
+      const timestamp = new Date().toLocaleString();
+      doc.text(
+        `Domain: ${safeDomain}   |   Model: 80% Technical Skills + 20% Communication   |   Exported: ${timestamp}`,
+        margin + 6,
+        y + 15
+      );
+      const datasetText = results.custom_source 
+        ? `Source: Custom CSV (${results.source_filename || 'Uploaded File'})` 
+        : `Source: Official 2k26 Induction Responses (495 Candidates)`;
+      const privacyText = !results.custom_source && !isMasterAdmin
+        ? '   |   Privacy: Names masked to initials, phone hashed'
+        : '';
+      doc.text(
+        `${datasetText}   |   Shortlisted: ${results.candidates.length} Candidates${privacyText}`,
+        margin + 6,
+        y + 20.5
+      );
+
+      y += 32;
+
+      // Table Header Column Positions
+      const colRank = margin;
+      const colName = margin + 14;
+      const colBranch = margin + 62;
+      const colPhone = margin + 100;
+      const colScores = margin + 134;
+      const colFinal = margin + 168;
+      const tableWidth = pageWidth - (margin * 2);
+
+      const drawTableHeader = (currentY) => {
+        doc.setFillColor(15, 23, 32);
+        doc.rect(margin, currentY, tableWidth, 8, 'F');
+        doc.setDrawColor(60, 75, 95);
+        doc.line(margin, currentY + 8, margin + tableWidth, currentY + 8);
+
+        doc.setTextColor(243, 208, 99);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.text('RANK', colRank + 2, currentY + 5.5);
+        doc.text('CANDIDATE', colName, currentY + 5.5);
+        doc.text('BRANCH', colBranch, currentY + 5.5);
+        doc.text('CONTACT', colPhone, currentY + 5.5);
+        doc.text('TECH / COMM', colScores, currentY + 5.5);
+        doc.text('SCORE / 100', colFinal, currentY + 5.5);
+      };
+
+      drawTableHeader(y);
+      y += 8;
+
+      // Render Rows
+      results.candidates.forEach((c, idx) => {
+        if (y > pageHeight - 20) {
+          doc.addPage();
+          y = 14;
+          drawTableHeader(y);
+          y += 8;
+        }
+
+        if (idx % 2 === 0) {
+          doc.setFillColor(250, 252, 255);
+        } else {
+          doc.setFillColor(242, 245, 249);
+        }
+        doc.rect(margin, y, tableWidth, 9.5, 'F');
+        doc.setDrawColor(220, 225, 232);
+        doc.setLineWidth(0.2);
+        doc.line(margin, y + 9.5, margin + tableWidth, y + 9.5);
+
+        // Rank
+        doc.setFont('helvetica', 'bold');
+        if (c.rank <= 3) {
+          doc.setTextColor(190, 130, 10);
+        } else {
+          doc.setTextColor(50, 60, 75);
+        }
+        doc.setFontSize(8.5);
+        doc.text(`#${c.rank}`, colRank + 2, y + 6.5);
+
+        // Candidate Name
+        doc.setTextColor(20, 30, 45);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        const nameLines = doc.splitTextToSize(c.candidate_name || 'N/A', 46);
+        doc.text(nameLines[0] || 'N/A', colName, y + 6.5);
+
+        // Branch
+        doc.setTextColor(70, 80, 95);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        const branchLines = doc.splitTextToSize(c.branch || 'N/A', 36);
+        doc.text(branchLines[0] || 'N/A', colBranch, y + 6.5);
+
+        // Contact
+        doc.setTextColor(80, 90, 105);
+        doc.setFontSize(7.5);
+        doc.text(c.phone_number || 'N/A', colPhone, y + 6.5);
+
+        // Scores Breakdown
+        doc.setTextColor(50, 60, 75);
+        doc.setFontSize(7.2);
+        const techStr = c.skills_score !== undefined ? `${c.skills_score}` : '-';
+        const commStr = c.communication_rating !== undefined ? `${c.communication_rating}★` : '-';
+        doc.text(`T: ${techStr}  |  C: ${commStr}`, colScores, y + 6.5);
+
+        // Final Score
+        doc.setTextColor(180, 120, 0);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.text(`${c.final_score ?? '-'}`, colFinal + 3, y + 6.5);
+
+        y += 9.5;
+      });
+
+      // Page numbers footer
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(140, 150, 160);
+        doc.text(
+          `BIT Sindri Clubs Dashboard — HnCC AI Shortlisting Report  |  Page ${i} of ${totalPages}`,
+          pageWidth / 2,
+          pageHeight - 8,
+          { align: 'center' }
+        );
+      }
+
+      const safeName = (results.domain || 'shortlist').toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      doc.save(`hncc_${safeName}_shortlist_${dateStr}.pdf`);
+
+      setExportSuccess(`Successfully generated and downloaded ${results.candidates.length} candidates as PDF!`);
+      setTimeout(() => setExportSuccess(''), 4500);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      setError('Failed to export PDF: ' + err.message);
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -443,7 +689,59 @@ export const HnccCandidateRanking = () => {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Export Actions Toolbar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                disabled={exportingCsv || !results.candidates.length}
+                className="filter-btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 16px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  color: 'var(--color-mint)',
+                  borderColor: 'rgba(92, 207, 137, 0.45)',
+                  backgroundColor: 'rgba(92, 207, 137, 0.08)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Download shortlisted candidate table as a CSV spreadsheet"
+              >
+                <FileSpreadsheet size={15} color="var(--color-mint)" />
+                {exportingCsv ? 'EXPORTING CSV...' : 'EXPORT CSV'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportPDF}
+                disabled={exportingPdf || !results.candidates.length}
+                className="filter-btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 16px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  color: 'var(--color-gold)',
+                  borderColor: 'rgba(243, 208, 99, 0.45)',
+                  backgroundColor: 'rgba(243, 208, 99, 0.08)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Download official shortlisted candidate report as a formatted PDF"
+              >
+                <Download size={15} color="var(--color-gold)" />
+                {exportingPdf ? 'GENERATING PDF...' : 'EXPORT PDF'}
+              </button>
+            </div>
+
+            {/* Badges Strip */}
+            <div style={{ width: '100%', display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
               {results.custom_source ? (
                 <span className="badge-pixel mint" title={results.source_filename}>
                   CUSTOM CSV: {results.source_filename || 'UPLOADED FILE'}
@@ -473,6 +771,25 @@ export const HnccCandidateRanking = () => {
                 {results.domain} ONLY
               </span>
             </div>
+
+            {/* Export Success Feedback Notification */}
+            {exportSuccess && (
+              <div style={{
+                width: '100%',
+                marginTop: '10px',
+                padding: '10px 14px',
+                backgroundColor: 'rgba(92, 207, 137, 0.15)',
+                border: '1px solid var(--color-mint)',
+                color: 'var(--color-mint)',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <CheckCircle size={15} />
+                <span>{exportSuccess}</span>
+              </div>
+            )}
           </div>
 
           {/* Candidates List Table / Cards */}
