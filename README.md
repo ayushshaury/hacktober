@@ -47,9 +47,7 @@ Built with a **Node.js Express** backend (with embedded PGlite / PostgreSQL), **
 
 ---
 
-## 🏗️ Detailed Architecture & System Flow
-
-### High-Level System Architecture Diagram
+## 🏗️ System Architecture
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -98,67 +96,6 @@ Built with a **Node.js Express** backend (with embedded PGlite / PostgreSQL), **
   │   - 20% Communication Skills             │    │   - users, clubs, events, applications,               │
   │ • Track Weighting & Normalization        │    │     candidate_rankings, audit_logs                    │
   └──────────────────────────────────────────┘    └───────────────────────────────────────────────────────┘
-```
-
-### Component Architecture & Interactions
-
-```mermaid
-graph TB
-    subgraph Client_Tier ["Client Tier (React 18 + Vite)"]
-        UI_Home["Home & Discovery Page"]
-        UI_Events["Events & HnCC FAQs"]
-        UI_ClubDetail["Club Portal & Details"]
-        UI_Apply["Induction Application Form"]
-        UI_Admin["Club Admin Dashboard"]
-        UI_AI["AI Candidate Ranking UI"]
-        UI_Login["Login & Pixel Art Loader"]
-        AuthCtx["AuthContext & RBAC State"]
-    end
-
-    subgraph Server_Tier ["Server Tier (Node.js & Express)"]
-        JWTMiddleware["JWT Auth & Role Guard"]
-        PrivacyEngine["Privacy & Masking Filter"]
-        AuthController["Auth Controller"]
-        AdminController["Admin Management Controller"]
-        ClubController["Club & Event Controller"]
-        InductionController["Induction Controller"]
-        AIRunner["AI Ranking Process Handler"]
-    end
-
-    subgraph AI_Tier ["AI Engine (Python)"]
-        RankerScript["hncc_candidate_ranker.py"]
-        TechScorer["Technical Evaluator (80%)"]
-        CommScorer["Communication Evaluator (20%)"]
-    end
-
-    subgraph Data_Tier ["Data & Storage Tier"]
-        DB["PostgreSQL / PGlite (WASM)"]
-        Uploads["Static Media Storage (/uploads)"]
-    end
-
-    UI_Login --> AuthController
-    AuthController --> DB
-    UI_Apply --> InductionController
-    UI_Admin --> AdminController
-    UI_Events --> ClubController
-    UI_AI --> AIRunner
-
-    InductionController --> JWTMiddleware
-    AdminController --> JWTMiddleware
-    ClubController --> JWTMiddleware
-
-    JWTMiddleware --> PrivacyEngine
-    PrivacyEngine --> DB
-    AdminController --> DB
-    ClubController --> DB
-    InductionController --> DB
-
-    AIRunner --> RankerScript
-    RankerScript --> TechScorer
-    RankerScript --> CommScorer
-    TechScorer --> AIRunner
-    CommScorer --> AIRunner
-    AIRunner --> DB
 ```
 
 ---
